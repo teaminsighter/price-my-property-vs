@@ -1,0 +1,473 @@
+// This is your Prisma schema file for the Admin Panel Template
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"  // For local development (change to "mysql" for production)
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL - Authentication & Authorization
+// ============================================
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String? // Optional for OAuth users
+  role          UserRole  @default(USER)
+  firstName     String?
+  lastName      String?
+  profileImage  String?
+  phone         String?
+  department    String?
+  lastLogin     DateTime?
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignedLeads Lead[]        @relation("AssignedTo")
+  ownedLeads    Lead[]        @relation("Owner")
+  activityLogs  ActivityLog[]
+  accounts      Account[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  AGENT
+  USER
+}
+
+// ============================================
+// LEAD MODEL - Complete 62 Fields
+// ============================================
+model Lead {
+  id String @id @default(cuid())
+
+  // ===== Basic Information (10 fields) =====
+  name           String
+  firstName      String?
+  lastName       String?
+  email          String
+  phone          String
+  secondaryPhone String?
+  company        String?
+  jobTitle       String?
+  department     String?
+
+  // ===== Contact Details (9 fields) =====
+  address  String
+  city     String?
+  state    String?
+  zipCode  String?
+  country  String? @default("New Zealand")
+  website  String?
+  linkedIn String?
+  twitter  String?
+
+  // ===== Lead Information (8 fields) =====
+  source         String?
+  campaign       String?
+  medium         String?
+  keyword        String?
+  referralSource String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+
+  // ===== Status & Scoring (5 fields) =====
+  status      LeadStatus @default(NEW)
+  priority    Priority   @default(MEDIUM)
+  score       Int        @default(0)
+  grade       String?
+  temperature String?    @default("cold")
+
+  // ===== Financial (4 fields) =====
+  value          Decimal?
+  estimatedValue Decimal?
+  budget         Decimal?
+  annualRevenue  Decimal?
+
+  // ===== Dates & Time (5 fields) =====
+  createdAt         DateTime  @default(now())
+  lastActivity      DateTime?
+  lastContactDate   DateTime?
+  nextFollowUp      DateTime?
+  expectedCloseDate DateTime?
+
+  // ===== Assignment & Ownership (3 fields) =====
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedTeam String?
+  ownerId      String?
+  owner        User?   @relation("Owner", fields: [ownerId], references: [id])
+
+  // ===== Additional Data (7 fields) =====
+  location    String?
+  timezone    String?
+  industry    String?
+  companySize String?
+  tags        String?  // JSON array as string
+  notes       String?
+  interests   String?  // JSON array as string
+
+  // ===== Engagement (6 fields) =====
+  emailOpens       Int       @default(0)
+  emailClicks      Int       @default(0)
+  websiteVisits    Int       @default(0)
+  downloadsCount   Int       @default(0)
+  lastEmailOpen    DateTime?
+  lastWebsiteVisit DateTime?
+
+  // ===== Real Estate Specific (15 fields) =====
+  propertyType          String?
+  propertyValue         String?
+  bedrooms              String?
+  agentMatches          String?   // JSON array as string
+  urgency               String?
+  timeframe             String?
+  currentAgent          String?
+  propertyCondition     String?
+  marketingPreferences  String?   // JSON array as string
+  commissionExpectation String?
+  experienceLevel       String?
+  preferredContact      String?
+  businessType          String?
+  phoneVerified         Boolean  @default(false)
+  stepsCompleted        Int      @default(0)
+  completionRate        Decimal?
+
+  // ===== Custom Fields (5 fields) =====
+  customField1 String?
+  customField2 String?
+  customField3 String?
+  customField4 String?
+  customField5 String?
+
+  // ===== Tracking Fields =====
+  formId              String? // Which form was submitted
+  placeId             String? // Google Places ID
+  uniqueUserId        String?
+  gclid               String? // Google Click ID
+  fbclid              String? // Facebook Click ID
+  pageVariation       String?
+  abTestId            String?
+  abTestVariationPath String?
+  visitId             String?
+
+  // ===== Cookie Tracking (3 fields) =====
+  gaClientId String? // Google Analytics Client ID from _ga cookie
+  fbp        String? // Facebook Browser Pixel ID from _fbp cookie
+  fbc        String? // Facebook Click ID from _fbc cookie
+
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([assignedToId])
+  @@index([ownerId])
+  @@index([formId])
+  @@map("leads")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  INACTIVE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============================================
+// ANALYTICS & TRACKING
+// ============================================
+model Visit {
+  id        String  @id @default(cuid())
+  visitId   String  @unique
+  sessionId String?
+  userId    String?
+
+  // Page Information
+  page        String
+  referrer    String?
+  landingPage String?
+  exitPage    String?
+
+  // UTM Parameters
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+
+  // Ad Tracking
+  gclid  String?
+  fbclid String?
+
+  // Device & Browser
+  deviceType       String?
+  browser          String?
+  os               String?
+  screenResolution String?
+
+  // Location
+  country   String?
+  city      String?
+  ipAddress String?
+
+  // Timing
+  duration  Int? // in seconds
+  pageViews Int  @default(1)
+
+  // AB Testing
+  abTestId        String?
+  abTestVariation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visitId])
+  @@index([userId])
+  @@index([page])
+  @@index([createdAt])
+  @@map("visits")
+}
+
+// ============================================
+// A/B TEST MODEL
+// ============================================
+model ABTest {
+  id       String     @id @default(cuid())
+  testName String
+  testType String // 'page', 'form', 'headline', etc.
+  status   TestStatus @default(ACTIVE)
+
+  // Variations
+  variations String  // JSON array: [{id, name, path, traffic}]
+
+  // Results
+  totalVisitors    Int @default(0)
+  totalConversions Int @default(0)
+
+  // Configuration
+  trafficSplit String  // JSON: {variantA: 50, variantB: 50}
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@map("ab_tests")
+}
+
+enum TestStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+// ============================================
+// SETTINGS MODEL - System Configuration
+// ============================================
+model Settings {
+  id          String  @id @default(cuid())
+  category    String // 'general', 'email', 'integrations', etc.
+  key         String  @unique
+  value       String   // JSON or plain text
+  description String?
+  isPublic    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("settings")
+}
+
+// ============================================
+// ACTIVITY LOG MODEL - Audit Trail
+// ============================================
+model ActivityLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action     String // 'login', 'create_lead', 'update_lead', etc.
+  resource   String? // 'Lead', 'User', 'Settings', etc.
+  resourceId String?
+  details    String?  // JSON with additional info
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ============================================
+// NOTIFICATION MODEL
+// ============================================
+model Notification {
+  id      String           @id @default(cuid())
+  title   String
+  message String
+  type    NotificationType @default(INFO)
+  read    Boolean          @default(false)
+
+  // Optional linking to resources
+  resourceType String? // 'Lead', 'User', etc.
+  resourceId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+// ============================================
+// FORM ANALYTICS MODEL - Track Form Behavior
+// ============================================
+model FormAnalytics {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+
+  // Session Information
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  abandoned    Boolean   @default(false)
+  completed    Boolean   @default(false)
+
+  // Step Tracking - JSON array of step events
+  // Format: [{step: 3, stepName: "Property Type", enteredAt: "...", leftAt: "...", duration: 8, answer: "Free Standing", wasSkipped: false}]
+  stepHistory  String?   // JSON string
+
+  // Progress Tracking
+  currentStep      Int     @default(3)
+  maxStepReached   Int     @default(3)
+  stepsCompleted   Int     @default(0)
+
+  // Answer Data - Complete form state as JSON
+  answers      String?   // JSON string of all answers
+
+  // Timing Metrics
+  totalDuration    Int?     // Total time in seconds
+  averageStepTime  Float?   // Average seconds per step
+
+  // Source Tracking
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmTerm      String?
+  utmContent   String?
+  referrer     String?
+  landingPage  String?
+
+  // Device & Browser Info
+  deviceType   String?  // mobile, tablet, desktop
+  browser      String?
+  os           String?
+  screenSize   String?
+
+  // Geolocation
+  country      String?
+  city         String?
+  ipAddress    String?
+
+  // Conversion
+  leadId       String?  // Link to Lead if form was completed
+  convertedToLead Boolean @default(false)
+
+  // Drop-off Analysis
+  exitStep     Int?     // Last step before abandonment
+  exitReason   String?  // timeout, close_tab, back_button, etc.
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([completed])
+  @@index([abandoned])
+  @@index([createdAt])
+  @@index([leadId])
+  @@index([exitStep])
+  @@map("form_analytics")
+}
