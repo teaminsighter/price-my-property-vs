@@ -41,15 +41,47 @@ export default function GetStartedClient() {
     lastName: "",
     email: "",
     mobile: "",
+    // UTM tracking fields
+    utmSource: "",
+    utmMedium: "",
+    utmCampaign: "",
+    utmTerm: "",
+    utmContent: "",
+    gclid: "",
+    fbclid: "",
+    source: "Website Form",
   });
 
   const totalSteps = 16; // Reduced from 17 since we removed the address step
 
-  // Get address from URL query parameter
+  // Get address and UTM parameters from URL query parameters
   useEffect(() => {
     const addressFromUrl = searchParams.get("address");
-    if (addressFromUrl) {
-      setFormData(prev => ({ ...prev, address: addressFromUrl }));
+    const utmSource = searchParams.get("utm_source");
+    const utmMedium = searchParams.get("utm_medium");
+    const utmCampaign = searchParams.get("utm_campaign");
+    const utmTerm = searchParams.get("utm_term");
+    const utmContent = searchParams.get("utm_content");
+    const gclid = searchParams.get("gclid");
+    const fbclid = searchParams.get("fbclid");
+
+    setFormData(prev => ({
+      ...prev,
+      ...(addressFromUrl && { address: addressFromUrl }),
+      ...(utmSource && { utmSource }),
+      ...(utmMedium && { utmMedium }),
+      ...(utmCampaign && { utmCampaign }),
+      ...(utmTerm && { utmTerm }),
+      ...(utmContent && { utmContent }),
+      ...(gclid && { gclid }),
+      ...(fbclid && { fbclid }),
+    }));
+
+    // Log UTM params for debugging
+    if (utmSource || utmMedium || utmCampaign || gclid || fbclid) {
+      console.log('UTM Parameters captured:', {
+        utmSource, utmMedium, utmCampaign, utmTerm, utmContent, gclid, fbclid
+      });
     }
   }, [searchParams]);
 

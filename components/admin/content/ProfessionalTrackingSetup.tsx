@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -244,6 +244,242 @@ const conversionAPIHealth = [
   { platform: 'TikTok', events: 0, errors: 0, successRate: 0 },
   { platform: 'Snapchat', events: 0, errors: 0, successRate: 0 }
 ];
+
+// Simple GTM Configuration Component
+function GTMConfigSimple() {
+  const [containerId, setContainerId] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Fetch existing GTM settings on mount
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch('/api/settings/gtm');
+        const data = await response.json();
+        if (data.containerId) {
+          setContainerId(data.containerId);
+          setIsConnected(data.enabled);
+        }
+      } catch (err) {
+        console.error('Failed to fetch GTM settings:', err);
+      } finally {
+        setIsFetching(false);
+      }
+    }
+    fetchSettings();
+  }, []);
+
+  const handleConnect = async () => {
+    setError(null);
+    setSuccessMessage(null);
+
+    // Validate container ID format
+    if (!containerId.trim()) {
+      setError('Please enter a Container ID');
+      return;
+    }
+
+    if (!/^GTM-[A-Z0-9]+$/i.test(containerId.trim())) {
+      setError('Invalid format. Use GTM-XXXXXXX');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/settings/gtm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          containerId: containerId.trim().toUpperCase(),
+          enabled: true
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect GTM');
+      }
+
+      setIsConnected(true);
+      setContainerId(data.settings.containerId);
+      setSuccessMessage('GTM connected! The tracking code has been automatically added to your site.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect GTM');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/settings/gtm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          containerId: '',
+          enabled: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect GTM');
+      }
+
+      setIsConnected(false);
+      setContainerId('');
+      setSuccessMessage('GTM disconnected successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect GTM');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900">Google Tag Manager</h2>
+        <p className="text-gray-600 mt-1">Connect your GTM container to automatically add tracking to your site</p>
+      </div>
+
+      {/* Main Card */}
+      <Card className="max-w-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Chrome className="h-5 w-5 text-blue-600" />
+            GTM Container
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status Badge */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Status:</span>
+            {isConnected ? (
+              <Badge className="bg-green-100 text-green-800 border-green-200">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                <XCircle className="h-3 w-3 mr-1" />
+                Not Connected
+              </Badge>
+            )}
+          </div>
+
+          {/* Container ID Input */}
+          <div className="space-y-2">
+            <Label htmlFor="gtm-container-id">Container ID</Label>
+            <Input
+              id="gtm-container-id"
+              placeholder="GTM-XXXXXXX"
+              value={containerId}
+              onChange={(e) => setContainerId(e.target.value.toUpperCase())}
+              disabled={isConnected || isLoading}
+              className="font-mono"
+            />
+            <p className="text-xs text-gray-500">
+              Find your Container ID in GTM under Admin &gt; Container Settings
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="flex items-center gap-2 text-green-600 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              {successMessage}
+            </div>
+          )}
+
+          {/* Connect/Disconnect Button */}
+          {isConnected ? (
+            <Button
+              variant="outline"
+              onClick={handleDisconnect}
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                <>
+                  <Unlink className="h-4 w-4 mr-2" />
+                  Disconnect GTM
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleConnect}
+              disabled={isLoading || !containerId.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Link className="h-4 w-4 mr-2" />
+                  Connect
+                </>
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Info Box */}
+      {isConnected && (
+        <Card className="max-w-xl border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800">GTM is Active</p>
+                <p className="text-sm text-green-700 mt-1">
+                  Google Tag Manager code has been automatically added to your website.
+                  All pages will now load your GTM container.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 export function ProfessionalTrackingSetup({ activeTab }: { activeTab: string }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -678,319 +914,7 @@ export function ProfessionalTrackingSetup({ activeTab }: { activeTab: string }) 
   }
 
   if (activeTab === 'gtm-config') {
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">Google Tag Manager</h2>
-            <p className="text-gray-600 mt-1">Configure GTM container and server-side tracking</p>
-          </div>
-          <Button className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Sync Container
-          </Button>
-        </div>
-
-        {/* GTM Status */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border-l-4 border-l-green-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Container Status</p>
-                  <p className="text-2xl font-bold text-green-600">Active</p>
-                  <p className="text-sm text-green-600 mt-1">
-                    <CheckCircle className="h-3 w-3 inline mr-1" />
-                    Published
-                  </p>
-                </div>
-                <Chrome className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Tags</p>
-                  <p className="text-3xl font-bold text-gray-900">{mockGTMConfig.tags.length}</p>
-                  <p className="text-sm text-blue-600 mt-1">Active tags</p>
-                </div>
-                <Target className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Triggers</p>
-                  <p className="text-3xl font-bold text-gray-900">{mockGTMConfig.triggers.length}</p>
-                  <p className="text-sm text-purple-600 mt-1">Configured</p>
-                </div>
-                <Zap className="h-8 w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Server Container</p>
-                  <p className="text-2xl font-bold text-green-600">Enabled</p>
-                  <p className="text-sm text-green-600 mt-1">sGTM active</p>
-                </div>
-                <Server className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* GTM Configuration */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-orange-600" />
-                Container Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="containerId">Container ID</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="containerId" 
-                    value={mockGTMConfig.containerId} 
-                    readOnly
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => copyToClipboard(mockGTMConfig.containerId)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="workspaceId">Workspace ID</Label>
-                <Input 
-                  id="workspaceId" 
-                  value={mockGTMConfig.workspaceId} 
-                  readOnly
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="accountId">Account ID</Label>
-                <Input 
-                  id="accountId" 
-                  value={mockGTMConfig.accountId} 
-                  readOnly
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Preview Mode</Label>
-                    <p className="text-sm text-gray-600">Enable GTM preview</p>
-                  </div>
-                  <Switch checked={mockGTMConfig.previewMode} />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Debug Mode</Label>
-                    <p className="text-sm text-gray-600">Show debug information</p>
-                  </div>
-                  <Switch checked={mockGTMConfig.debugMode} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5 text-orange-600" />
-                Server-Side Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Server Container</Label>
-                  <p className="text-sm text-gray-600">Enable server-side GTM</p>
-                </div>
-                <Switch checked={mockGTMConfig.serverContainer.enabled} />
-              </div>
-
-              {mockGTMConfig.serverContainer.enabled && (
-                <>
-                  <div>
-                    <Label htmlFor="serverEndpoint">Server Endpoint</Label>
-                    <Input 
-                      id="serverEndpoint" 
-                      value={mockGTMConfig.serverContainer.endpoint}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="defaultUrl">Default URL</Label>
-                    <Input 
-                      id="defaultUrl" 
-                      value={mockGTMConfig.serverContainer.defaultUrl}
-                    />
-                  </div>
-
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      Server-side GTM helps improve performance and data privacy by processing tags on the server.
-                    </AlertDescription>
-                  </Alert>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tags and Triggers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tags</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockGTMConfig.tags.map((tag) => (
-                  <div key={tag.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{tag.name}</p>
-                      <p className="text-sm text-gray-600">{tag.type}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getStatusColor(tag.status)}>
-                        {tag.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Triggers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockGTMConfig.triggers.map((trigger) => (
-                  <div key={trigger.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{trigger.name}</p>
-                      <p className="text-sm text-gray-600">{trigger.type}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getStatusColor(trigger.status)}>
-                        {trigger.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Installation Code */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Code className="h-5 w-5 text-orange-600" />
-              Installation Code
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label>Head Section Code</Label>
-                <div className="relative">
-                  <Textarea
-                    readOnly
-                    value={`<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${mockGTMConfig.containerId}');</script>
-<!-- End Google Tag Manager -->`}
-                    className="font-mono text-sm resize-none"
-                    rows={6}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => copyToClipboard(`<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${mockGTMConfig.containerId}');</script>
-<!-- End Google Tag Manager -->`)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <Label>Body Section Code</Label>
-                <div className="relative">
-                  <Textarea
-                    readOnly
-                    value={`<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${mockGTMConfig.containerId}"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->`}
-                    className="font-mono text-sm resize-none"
-                    rows={4}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => copyToClipboard(`<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${mockGTMConfig.containerId}"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->`)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <GTMConfigSimple />;
   }
 
   if (activeTab === 'integrations') {

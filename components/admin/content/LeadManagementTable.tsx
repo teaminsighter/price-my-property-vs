@@ -268,9 +268,9 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { id: 'completionRate', label: 'Completion Rate', category: 'form-data', visible: false, sortable: true, width: '130px' },
   
   // UTM Parameters
-  { id: 'utmCampaign', label: 'UTM Campaign', category: 'utm-parameters', visible: false, sortable: true, width: '130px' },
-  { id: 'utmSource', label: 'UTM Source', category: 'utm-parameters', visible: false, sortable: true, width: '120px' },
-  { id: 'utmMedium', label: 'UTM Medium', category: 'utm-parameters', visible: false, sortable: true, width: '120px' },
+  { id: 'utmSource', label: 'UTM Source', category: 'utm-parameters', visible: true, sortable: true, width: '120px' },
+  { id: 'utmMedium', label: 'UTM Medium', category: 'utm-parameters', visible: true, sortable: true, width: '120px' },
+  { id: 'utmCampaign', label: 'UTM Campaign', category: 'utm-parameters', visible: true, sortable: true, width: '130px' },
   { id: 'utmContent', label: 'UTM Content', category: 'utm-parameters', visible: false, sortable: true, width: '120px' },
   { id: 'utmKeyword', label: 'UTM Keyword', category: 'utm-parameters', visible: false, sortable: true, width: '120px' },
   { id: 'utmPlacement', label: 'UTM Placement', category: 'utm-parameters', visible: false, sortable: true, width: '130px' },
@@ -411,7 +411,14 @@ function SortableColumnHeader({ column, sortBy, sortOrder, onSort }: SortableCol
     >
       <div className="flex items-center space-x-2 min-w-0 w-full">
         <GripVertical className="h-3 w-3 text-gray-400 flex-shrink-0" />
-        <span className="truncate flex-1">{column.label}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="truncate flex-1 cursor-default">{column.label}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            {column.label}
+          </TooltipContent>
+        </Tooltip>
         {column.sortable && (
           <Button
             variant="ghost"
@@ -862,7 +869,8 @@ export function LeadManagementTable({
   const dynamicTableWidth = calculateTableWidth();
 
   return (
-    <div className="bg-white" style={{ minWidth: `${dynamicTableWidth}px` }}>
+    <div className="bg-white">
+      {/* Fixed header - stays in place */}
       <div className="px-6 py-4 border-b bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -1077,8 +1085,8 @@ export function LeadManagementTable({
           </div>
         </div>
       </div>
-      <div className="p-0">
-        {/* Table container */}
+      {/* Scrollable table container */}
+      <div className="overflow-x-auto">
         <div style={{ minWidth: `${dynamicTableWidth}px` }}>
           <div
             key={tableKey}

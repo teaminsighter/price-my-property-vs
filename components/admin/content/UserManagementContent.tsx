@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -154,16 +155,90 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
     dateRange: 'all' as string
   });
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { data: session } = useSession();
+
+  // Load current user profile and users list on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Load current user profile
+        const profileResponse = await fetch('/api/users/me');
+        const profileData = await profileResponse.json();
+        if (profileData.success) {
+          setCurrentUser(profileData.user);
+          // Pre-fill profile form
+          setProfileData({
+            firstName: profileData.user.firstName || '',
+            lastName: profileData.user.lastName || '',
+            email: profileData.user.email || '',
+            phone: profileData.user.phone || '',
+            position: profileData.user.department || '',
+            location: ''
+          });
+        }
+
+        // Load all users
+        const usersResponse = await fetch('/api/users');
+        const usersData = await usersResponse.json();
+        if (usersData.success) {
+          setUsers(usersData.users);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (session) {
+      loadData();
+    }
+  }, [session]);
 
   // Profile Management Handlers
   const handleEditProfile = () => {
     setShowEditProfileModal(true);
   };
 
-  const handleSaveProfile = () => {
-    setModalMessage(`✅ Profile Updated Successfully!\n\n👤 Profile Changes:\n• Name: ${profileData.firstName} ${profileData.lastName}\n• Email: ${profileData.email}\n• Phone: ${profileData.phone}\n• Position: ${profileData.position}\n• Location: ${profileData.location}\n\n🔄 Changes have been saved and will be reflected across all systems.`);
-    setShowModal(true);
-    setShowEditProfileModal(false);
+  const handleSaveProfile = async () => {
+    setLoadingStates(prev => ({ ...prev, saveProfile: true }));
+    try {
+      const response = await fetch('/api/users/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          email: profileData.email,
+          phone: profileData.phone,
+          department: profileData.position,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        let message = `Profile Updated Successfully!\n\nProfile Changes:\n• Name: ${profileData.firstName} ${profileData.lastName}\n• Email: ${profileData.email}\n• Phone: ${profileData.phone}\n• Position: ${profileData.position}`;
+
+        if (data.emailChanged) {
+          message += '\n\nIMPORTANT: Your email has been changed. Please log out and log in again with your new email address.';
+        }
+
+        setModalMessage(message);
+        setShowEditProfileModal(false);
+      } else {
+        setModalMessage(`Failed to Update Profile\n\n${data.error || 'An error occurred while saving your profile.'}`);
+      }
+      setShowModal(true);
+    } catch (error) {
+      setModalMessage('Failed to Update Profile\n\nCould not connect to server. Please try again.');
+      setShowModal(true);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, saveProfile: false }));
+    }
   };
 
   const handleCancelEditProfile = () => {
@@ -188,14 +263,14 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
       const currentEmpty = !passwordData.current;
       const newEmpty = !passwordData.new;
       const confirmEmpty = !passwordData.confirm;
-      
+
       // Set error states for red borders
       setPasswordFieldErrors({
         current: currentEmpty,
         new: newEmpty,
         confirm: confirmEmpty
       });
-      
+
       if (currentEmpty || newEmpty || confirmEmpty) {
         // Show warning message for empty fields
         setModalMessage('Password Fields Required\n\nPlease fill in all password fields before proceeding:\n• Current password is ' + (currentEmpty ? 'MISSING' : 'provided') + '\n• New password is ' + (newEmpty ? 'MISSING' : 'provided') + '\n• Confirm password is ' + (confirmEmpty ? 'MISSING' : 'provided') + '\n\nAll fields must be completed to update your password.');
@@ -220,13 +295,33 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
         return;
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call real API to update password
+      const response = await fetch('/api/users/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.current,
+          newPassword: passwordData.new,
+        }),
+      });
 
-      // If all validations pass, clear errors and show success
-      setPasswordFieldErrors({ current: false, new: false, confirm: false });
-      setPasswordData({ current: '', new: '', confirm: '' });
-      setModalMessage('Password Updated Successfully!\n\nYour password has been changed and is now active.\n\nFor security reasons:\n• You will be logged out from other devices\n• New login attempt notifications will be sent\n• Two-factor authentication codes will be refreshed\n\nPlease use your new password for future logins.');
+      const data = await response.json();
+
+      if (data.success) {
+        // If all validations pass, clear errors and show success
+        setPasswordFieldErrors({ current: false, new: false, confirm: false });
+        setPasswordData({ current: '', new: '', confirm: '' });
+        setModalMessage('Password Updated Successfully!\n\nYour password has been changed and is now active.\n\nFor security reasons:\n• You will be logged out from other devices\n• New login attempt notifications will be sent\n\nPlease use your new password for future logins.');
+      } else {
+        // Handle specific error messages
+        if (data.error === 'Current password is incorrect') {
+          setPasswordFieldErrors({ current: true, new: false, confirm: false });
+        }
+        setModalMessage(`Password Update Failed\n\n${data.error || 'An error occurred while updating your password.'}`);
+      }
+      setShowModal(true);
+    } catch (error) {
+      setModalMessage('Password Update Failed\n\nCould not connect to server. Please try again.');
       setShowModal(true);
     } finally {
       // Stop loading
@@ -684,25 +779,32 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
 
   // Filter and search logic
   const filteredUsers = users.filter(user => {
-    // Search filter
-    const matchesSearch = user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                         user.role.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                         user.location.toLowerCase().includes(userSearchTerm.toLowerCase());
-    
-    // Status filter
-    const matchesStatus = userFilters.status.length === 0 || userFilters.status.includes(user.status);
-    
+    // Search filter - safely handle potentially undefined values
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || '';
+    const userEmail = user.email || '';
+    const userRole = user.role || '';
+    const userDept = user.department || '';
+
+    const searchTerm = userSearchTerm.toLowerCase();
+    const matchesSearch = !searchTerm ||
+                         userName.toLowerCase().includes(searchTerm) ||
+                         userEmail.toLowerCase().includes(searchTerm) ||
+                         userRole.toLowerCase().includes(searchTerm) ||
+                         userDept.toLowerCase().includes(searchTerm);
+
+    // Status filter - use isActive field from database
+    const userStatus = user.isActive ? 'active' : 'inactive';
+    const matchesStatus = userFilters.status.length === 0 || userFilters.status.includes(userStatus);
+
     // Role filter
-    const matchesRole = userFilters.roles.length === 0 || userFilters.roles.includes(user.role);
-    
-    // Location filter
-    const matchesLocation = userFilters.locations.length === 0 || userFilters.locations.includes(user.location);
-    
-    // Permission filter
-    const matchesPermissions = userFilters.permissions.length === 0 || 
-                              userFilters.permissions.some(perm => user.permissions.includes(perm));
-    
+    const matchesRole = userFilters.roles.length === 0 || userFilters.roles.includes(userRole);
+
+    // Location/Department filter
+    const matchesLocation = userFilters.locations.length === 0 || userFilters.locations.includes(userDept);
+
+    // Permission filter - skip if no permissions defined
+    const matchesPermissions = userFilters.permissions.length === 0;
+
     return matchesSearch && matchesStatus && matchesRole && matchesLocation && matchesPermissions;
   });
 
@@ -714,22 +816,68 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
     setShowAddUserModal(true);
   };
 
-  const handleSaveNewUser = () => {
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
+  const handleSaveNewUser = async () => {
     if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.role) {
-      setModalMessage(`⚠️ Missing Required Fields\n\nPlease fill in all required fields:\n• First Name\n• Last Name\n• Email Address\n• User Role\n\nThese fields are necessary to create a new user account.`);
+      setModalMessage(`Missing Required Fields\n\nPlease fill in all required fields:\n• First Name\n• Last Name\n• Email Address\n• User Role\n\nThese fields are necessary to create a new user account.`);
       setShowModal(true);
       return;
     }
 
-    setModalMessage(`✅ User Created Successfully!\n\n👤 New User Account:\n• Name: ${newUser.firstName} ${newUser.lastName}\n• Email: ${newUser.email}\n• Role: ${newUser.role}\n• Location: ${newUser.location || 'Not specified'}\n• Status: Active\n• Created: ${new Date().toLocaleString()}\n\n📧 Welcome email with login credentials has been sent to the user.`);
-    setShowModal(true);
-    setShowAddUserModal(false);
-    setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: '', location: '', permissions: [] });
+    if (!newUserPassword || newUserPassword.length < 8) {
+      setModalMessage(`Password Required\n\nPlease provide a password with at least 8 characters for the new user.`);
+      setShowModal(true);
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          email: newUser.email,
+          password: newUserPassword,
+          role: newUser.role,
+          phone: newUser.phone,
+          department: newUser.location,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setModalMessage(`User Created Successfully!\n\nNew User Account:\n• Name: ${newUser.firstName} ${newUser.lastName}\n• Email: ${newUser.email}\n• Role: ${newUser.role}\n• Status: Active\n• Created: ${new Date().toLocaleString()}\n\nPlease share the login credentials with the user securely.`);
+        setShowAddUserModal(false);
+        setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: '', location: '', permissions: [] });
+        setNewUserPassword('');
+
+        // Refresh user list
+        const usersResponse = await fetch('/api/users');
+        const usersData = await usersResponse.json();
+        if (usersData.success) {
+          setUsers(usersData.users);
+        }
+      } else {
+        setModalMessage(`Failed to Create User\n\n${data.error || 'An error occurred while creating the user.'}`);
+      }
+      setShowModal(true);
+    } catch (error) {
+      setModalMessage('Failed to Create User\n\nCould not connect to server. Please try again.');
+      setShowModal(true);
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   const handleCancelAddUser = () => {
     setShowAddUserModal(false);
     setNewUser({ firstName: '', lastName: '', email: '', phone: '', role: '', location: '', permissions: [] });
+    setNewUserPassword('');
   };
 
   const handleViewUser = (userName: string, userEmail: string) => {
@@ -2245,14 +2393,28 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
                     <option value="">Select a role...</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="AGENT">Agent</option>
+                    <option value="USER">User</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                  <Input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="Enter password (min 8 characters)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <Input
                     value={newUser.location}
                     onChange={(e) => setNewUser({...newUser, location: e.target.value})}
-                    placeholder="Enter office location"
+                    placeholder="Enter department"
                   />
                 </div>
               </div>
@@ -2262,8 +2424,12 @@ export function UserManagementContent({ activeTab }: UserManagementContentProps)
               <Button variant="outline" onClick={handleCancelAddUser}>
                 Cancel
               </Button>
-              <Button className="bg-[#f87416] hover:bg-[#e6681a] text-white" onClick={handleSaveNewUser}>
-                Create User
+              <Button
+                className="bg-[#f87416] hover:bg-[#e6681a] text-white"
+                onClick={handleSaveNewUser}
+                disabled={isCreatingUser}
+              >
+                {isCreatingUser ? 'Creating...' : 'Create User'}
               </Button>
             </div>
           </div>

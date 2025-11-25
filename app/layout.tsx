@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { GTMScript } from "@/components/GTMScript";
 
 export const metadata: Metadata = {
   title: "Price My Property - Value Your Next Move",
@@ -24,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GTMScript />
+        {children}
+      </body>
     </html>
   );
 }

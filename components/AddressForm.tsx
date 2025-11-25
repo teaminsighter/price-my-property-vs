@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, Suspense } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 
-export default function AddressForm() {
+function AddressFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
@@ -50,7 +51,20 @@ export default function AddressForm() {
     e.preventDefault();
     const address = inputRef.current?.value || "";
     if (address.trim()) {
-      router.push(`/get-started?address=${encodeURIComponent(address)}`);
+      // Build URL with address and preserve UTM parameters
+      const params = new URLSearchParams();
+      params.set('address', address);
+
+      // Preserve UTM parameters from current URL
+      const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
+      utmParams.forEach(param => {
+        const value = searchParams.get(param);
+        if (value) {
+          params.set(param, value);
+        }
+      });
+
+      router.push(`/get-started?${params.toString()}`);
     }
   };
 
@@ -93,5 +107,34 @@ export default function AddressForm() {
         </motion.button>
       </motion.form>
     </>
+  );
+}
+
+// Loading fallback for Suspense
+function AddressFormFallback() {
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
+      <input
+        type="text"
+        placeholder="ENTER YOUR ADDRESS"
+        className="flex-1 px-6 py-4 text-gray-700 bg-white rounded-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-400 text-sm"
+        disabled
+      />
+      <button
+        type="button"
+        className="px-8 py-4 bg-primary text-white font-semibold rounded-sm whitespace-nowrap opacity-75"
+        disabled
+      >
+        GET STARTED NOW
+      </button>
+    </div>
+  );
+}
+
+export default function AddressForm() {
+  return (
+    <Suspense fallback={<AddressFormFallback />}>
+      <AddressFormContent />
+    </Suspense>
   );
 }

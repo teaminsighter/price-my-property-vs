@@ -1,0 +1,477 @@
+// This is your Prisma schema file for PRODUCTION (MySQL on Hostinger)
+// Copy this to schema.prisma when deploying to production
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma" // Use Prisma relation mode for better compatibility
+}
+
+// ============================================
+// USER MODEL - Authentication & Authorization
+// ============================================
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String?   @db.VarChar(255)
+  role          UserRole  @default(USER)
+  firstName     String?   @db.VarChar(100)
+  lastName      String?   @db.VarChar(100)
+  profileImage  String?   @db.Text
+  phone         String?   @db.VarChar(50)
+  department    String?   @db.VarChar(100)
+  lastLogin     DateTime?
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  image         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignedLeads Lead[]        @relation("AssignedTo")
+  ownedLeads    Lead[]        @relation("Owner")
+  activityLogs  ActivityLog[]
+  accounts      Account[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String  @db.VarChar(100)
+  provider          String  @db.VarChar(100)
+  providerAccountId String  @db.VarChar(255)
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(100)
+  scope             String? @db.Text
+  id_token          String? @db.Text
+  session_state     String? @db.VarChar(255)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @db.VarChar(255)
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String @db.VarChar(255)
+  token      String @unique @db.VarChar(255)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  AGENT
+  USER
+}
+
+// ============================================
+// LEAD MODEL - Complete 62 Fields
+// ============================================
+model Lead {
+  id String @id @default(cuid())
+
+  // ===== Basic Information (10 fields) =====
+  name           String  @db.VarChar(255)
+  firstName      String? @db.VarChar(100)
+  lastName       String? @db.VarChar(100)
+  email          String  @db.VarChar(255)
+  phone          String  @db.VarChar(50)
+  secondaryPhone String? @db.VarChar(50)
+  company        String? @db.VarChar(255)
+  jobTitle       String? @db.VarChar(100)
+  department     String? @db.VarChar(100)
+
+  // ===== Contact Details (9 fields) =====
+  address  String  @db.Text
+  city     String? @db.VarChar(100)
+  state    String? @db.VarChar(100)
+  zipCode  String? @db.VarChar(20)
+  country  String? @default("New Zealand") @db.VarChar(100)
+  website  String? @db.VarChar(255)
+  linkedIn String? @db.VarChar(255)
+  twitter  String? @db.VarChar(255)
+
+  // ===== Lead Information (8 fields) =====
+  source         String? @db.VarChar(100)
+  campaign       String? @db.VarChar(255)
+  medium         String? @db.VarChar(100)
+  keyword        String? @db.VarChar(255)
+  referralSource String? @db.VarChar(255)
+  utmSource      String? @db.VarChar(255)
+  utmMedium      String? @db.VarChar(255)
+  utmCampaign    String? @db.VarChar(255)
+
+  // ===== Status & Scoring (5 fields) =====
+  status      LeadStatus @default(NEW)
+  priority    Priority   @default(MEDIUM)
+  score       Int        @default(0)
+  grade       String?    @db.VarChar(10)
+  temperature String?    @default("cold") @db.VarChar(20)
+
+  // ===== Financial (4 fields) =====
+  value          Decimal? @db.Decimal(15, 2)
+  estimatedValue Decimal? @db.Decimal(15, 2)
+  budget         Decimal? @db.Decimal(15, 2)
+  annualRevenue  Decimal? @db.Decimal(15, 2)
+
+  // ===== Dates & Time (5 fields) =====
+  createdAt         DateTime  @default(now())
+  lastActivity      DateTime?
+  lastContactDate   DateTime?
+  nextFollowUp      DateTime?
+  expectedCloseDate DateTime?
+
+  // ===== Assignment & Ownership (3 fields) =====
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedTeam String? @db.VarChar(100)
+  ownerId      String?
+  owner        User?   @relation("Owner", fields: [ownerId], references: [id])
+
+  // ===== Additional Data (7 fields) =====
+  location    String? @db.VarChar(255)
+  timezone    String? @db.VarChar(50)
+  industry    String? @db.VarChar(100)
+  companySize String? @db.VarChar(50)
+  tags        String? @db.Text // JSON array as string
+  notes       String? @db.Text
+  interests   String? @db.Text // JSON array as string
+
+  // ===== Engagement (6 fields) =====
+  emailOpens       Int       @default(0)
+  emailClicks      Int       @default(0)
+  websiteVisits    Int       @default(0)
+  downloadsCount   Int       @default(0)
+  lastEmailOpen    DateTime?
+  lastWebsiteVisit DateTime?
+
+  // ===== Real Estate Specific (15 fields) =====
+  propertyType          String?  @db.VarChar(100)
+  propertyValue         String?  @db.VarChar(100)
+  bedrooms              String?  @db.VarChar(20)
+  agentMatches          String?  @db.Text // JSON array as string
+  urgency               String?  @db.VarChar(100)
+  timeframe             String?  @db.VarChar(100)
+  currentAgent          String?  @db.VarChar(255)
+  propertyCondition     String?  @db.VarChar(100)
+  marketingPreferences  String?  @db.Text // JSON array as string
+  commissionExpectation String?  @db.VarChar(100)
+  experienceLevel       String?  @db.VarChar(100)
+  preferredContact      String?  @db.VarChar(100)
+  businessType          String?  @db.VarChar(100)
+  phoneVerified         Boolean  @default(false)
+  stepsCompleted        Int      @default(0)
+  completionRate        Decimal? @db.Decimal(5, 2)
+
+  // ===== Custom Fields (5 fields) =====
+  customField1 String? @db.Text
+  customField2 String? @db.Text
+  customField3 String? @db.Text
+  customField4 String? @db.Text
+  customField5 String? @db.Text
+
+  // ===== Tracking Fields =====
+  formId              String? @db.VarChar(100) // Which form was submitted
+  placeId             String? @db.VarChar(255) // Google Places ID
+  uniqueUserId        String? @db.VarChar(100)
+  gclid               String? @db.VarChar(255) // Google Click ID
+  fbclid              String? @db.VarChar(255) // Facebook Click ID
+  pageVariation       String? @db.VarChar(100)
+  abTestId            String? @db.VarChar(100)
+  abTestVariationPath String? @db.VarChar(255)
+  visitId             String? @db.VarChar(100)
+
+  // ===== Cookie Tracking (3 fields) =====
+  gaClientId String? @db.VarChar(255) // Google Analytics Client ID from _ga cookie
+  fbp        String? @db.VarChar(255) // Facebook Browser Pixel ID from _fbp cookie
+  fbc        String? @db.VarChar(255) // Facebook Click ID from _fbc cookie
+
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([assignedToId])
+  @@index([ownerId])
+  @@index([formId])
+  @@map("leads")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  INACTIVE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============================================
+// ANALYTICS & TRACKING
+// ============================================
+model Visit {
+  id        String  @id @default(cuid())
+  visitId   String  @unique @db.VarChar(100)
+  sessionId String? @db.VarChar(100)
+  userId    String? @db.VarChar(100)
+
+  // Page Information
+  page        String  @db.VarChar(255)
+  referrer    String? @db.Text
+  landingPage String? @db.VarChar(255)
+  exitPage    String? @db.VarChar(255)
+
+  // UTM Parameters
+  utmSource   String? @db.VarChar(255)
+  utmMedium   String? @db.VarChar(255)
+  utmCampaign String? @db.VarChar(255)
+  utmTerm     String? @db.VarChar(255)
+  utmContent  String? @db.VarChar(255)
+
+  // Ad Tracking
+  gclid  String? @db.VarChar(255)
+  fbclid String? @db.VarChar(255)
+
+  // Device & Browser
+  deviceType       String? @db.VarChar(50)
+  browser          String? @db.VarChar(100)
+  os               String? @db.VarChar(100)
+  screenResolution String? @db.VarChar(50)
+
+  // Location
+  country   String? @db.VarChar(100)
+  city      String? @db.VarChar(100)
+  ipAddress String? @db.VarChar(45) // IPv6 compatible
+
+  // Timing
+  duration  Int? // in seconds
+  pageViews Int  @default(1)
+
+  // AB Testing
+  abTestId        String? @db.VarChar(100)
+  abTestVariation String? @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visitId])
+  @@index([userId])
+  @@index([page])
+  @@index([createdAt])
+  @@map("visits")
+}
+
+// ============================================
+// A/B TEST MODEL
+// ============================================
+model ABTest {
+  id       String     @id @default(cuid())
+  testName String     @db.VarChar(255)
+  testType String     @db.VarChar(50) // 'page', 'form', 'headline', etc.
+  status   TestStatus @default(ACTIVE)
+
+  // Variations
+  variations String @db.Text // JSON array: [{id, name, path, traffic}]
+
+  // Results
+  totalVisitors    Int @default(0)
+  totalConversions Int @default(0)
+
+  // Configuration
+  trafficSplit String @db.Text // JSON: {variantA: 50, variantB: 50}
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@map("ab_tests")
+}
+
+enum TestStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+// ============================================
+// SETTINGS MODEL - System Configuration
+// ============================================
+model Settings {
+  id          String  @id @default(cuid())
+  category    String  @db.VarChar(50) // 'general', 'email', 'integrations', etc.
+  key         String  @unique @db.VarChar(100)
+  value       String  @db.Text // JSON or plain text
+  description String? @db.Text
+  isPublic    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("settings")
+}
+
+// ============================================
+// ACTIVITY LOG MODEL - Audit Trail
+// ============================================
+model ActivityLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action     String  @db.VarChar(100) // 'login', 'create_lead', 'update_lead', etc.
+  resource   String? @db.VarChar(100) // 'Lead', 'User', 'Settings', etc.
+  resourceId String? @db.VarChar(100)
+  details    String? @db.Text // JSON with additional info
+
+  ipAddress String? @db.VarChar(45)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ============================================
+// NOTIFICATION MODEL
+// ============================================
+model Notification {
+  id      String           @id @default(cuid())
+  title   String           @db.VarChar(255)
+  message String           @db.Text
+  type    NotificationType @default(INFO)
+  read    Boolean          @default(false)
+
+  // Optional linking to resources
+  resourceType String? @db.VarChar(100) // 'Lead', 'User', etc.
+  resourceId   String? @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+// ============================================
+// FORM ANALYTICS MODEL - Track Form Behavior
+// ============================================
+model FormAnalytics {
+  id        String @id @default(cuid())
+  sessionId String @unique @db.VarChar(100)
+
+  // Session Information
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  abandoned   Boolean   @default(false)
+  completed   Boolean   @default(false)
+
+  // Step Tracking - JSON array of step events
+  // Format: [{step: 3, stepName: "Property Type", enteredAt: "...", leftAt: "...", duration: 8, answer: "Free Standing", wasSkipped: false}]
+  stepHistory String? @db.Text // JSON string
+
+  // Progress Tracking
+  currentStep    Int @default(3)
+  maxStepReached Int @default(3)
+  stepsCompleted Int @default(0)
+
+  // Answer Data - Complete form state as JSON
+  answers String? @db.Text // JSON string of all answers
+
+  // Timing Metrics
+  totalDuration   Int?   // Total time in seconds
+  averageStepTime Float? // Average seconds per step
+
+  // Source Tracking
+  utmSource   String? @db.VarChar(255)
+  utmMedium   String? @db.VarChar(255)
+  utmCampaign String? @db.VarChar(255)
+  utmTerm     String? @db.VarChar(255)
+  utmContent  String? @db.VarChar(255)
+  referrer    String? @db.Text
+  landingPage String? @db.VarChar(255)
+
+  // Device & Browser Info
+  deviceType String? @db.VarChar(50) // mobile, tablet, desktop
+  browser    String? @db.VarChar(100)
+  os         String? @db.VarChar(100)
+  screenSize String? @db.VarChar(50)
+
+  // Geolocation
+  country   String? @db.VarChar(100)
+  city      String? @db.VarChar(100)
+  ipAddress String? @db.VarChar(45)
+
+  // Conversion
+  leadId          String? @db.VarChar(100) // Link to Lead if form was completed
+  convertedToLead Boolean @default(false)
+
+  // Drop-off Analysis
+  exitStep   Int?    // Last step before abandonment
+  exitReason String? @db.VarChar(100) // timeout, close_tab, back_button, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([completed])
+  @@index([abandoned])
+  @@index([createdAt])
+  @@index([leadId])
+  @@index([exitStep])
+  @@map("form_analytics")
+}
