@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   CheckCircle,
   AlertCircle,
   Settings,
@@ -30,11 +30,250 @@ import {
   Webhook,
   DollarSign,
   Target,
-  Shield
+  Shield,
+  XCircle,
+  Chrome
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 interface IntegrationsContentProps {
   activeTab: string;
+}
+
+// Simple GTM Configuration Component
+function GTMConfigSimple() {
+  const [containerId, setContainerId] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Fetch existing GTM settings on mount
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch('/api/settings/gtm');
+        const data = await response.json();
+        if (data.containerId) {
+          setContainerId(data.containerId);
+          setIsConnected(data.enabled);
+        }
+      } catch (err) {
+        console.error('Failed to fetch GTM settings:', err);
+      } finally {
+        setIsFetching(false);
+      }
+    }
+    fetchSettings();
+  }, []);
+
+  const handleConnect = async () => {
+    setError(null);
+    setSuccessMessage(null);
+
+    // Validate container ID format
+    if (!containerId.trim()) {
+      setError('Please enter a Container ID');
+      return;
+    }
+
+    if (!/^GTM-[A-Z0-9]+$/i.test(containerId.trim())) {
+      setError('Invalid format. Use GTM-XXXXXXX');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/settings/gtm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          containerId: containerId.trim().toUpperCase(),
+          enabled: true
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect GTM');
+      }
+
+      setIsConnected(true);
+      setContainerId(data.settings.containerId);
+      setSuccessMessage('GTM connected! The tracking code has been automatically added to your site.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect GTM');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/settings/gtm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          containerId: '',
+          enabled: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect GTM');
+      }
+
+      setIsConnected(false);
+      setContainerId('');
+      setSuccessMessage('GTM disconnected successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect GTM');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900">Google Tag Manager</h2>
+        <p className="text-gray-600 mt-1">Connect your GTM container to automatically add tracking to your site</p>
+      </div>
+
+      {/* Main Card */}
+      <Card className="max-w-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Chrome className="h-5 w-5 text-blue-600" />
+            GTM Container
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status Badge */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Status:</span>
+            {isConnected ? (
+              <Badge className="bg-green-100 text-green-800 border-green-200">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                <XCircle className="h-3 w-3 mr-1" />
+                Not Connected
+              </Badge>
+            )}
+          </div>
+
+          {/* Container ID Input */}
+          <div className="space-y-2">
+            <Label htmlFor="gtm-container-id">Container ID</Label>
+            <Input
+              id="gtm-container-id"
+              placeholder="GTM-XXXXXXX"
+              value={containerId}
+              onChange={(e) => setContainerId(e.target.value.toUpperCase())}
+              disabled={isConnected || isLoading}
+              className="font-mono"
+            />
+            <p className="text-xs text-gray-500">
+              Find your Container ID in GTM under Admin &gt; Container Settings
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="flex items-center gap-2 text-green-600 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              {successMessage}
+            </div>
+          )}
+
+          {/* Connect/Disconnect Button */}
+          {isConnected ? (
+            <Button
+              variant="outline"
+              onClick={handleDisconnect}
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                <>
+                  <Unlink className="h-4 w-4 mr-2" />
+                  Disconnect GTM
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleConnect}
+              disabled={isLoading || !containerId.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Link className="h-4 w-4 mr-2" />
+                  Connect
+                </>
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Info Box */}
+      {isConnected && (
+        <Card className="max-w-xl border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800">GTM is Active</p>
+                <p className="text-sm text-green-700 mt-1">
+                  Google Tag Manager code has been automatically added to your website.
+                  All pages will now load your GTM container.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
 
 // Professional Google Ads Interface matching the screenshots
@@ -1659,6 +1898,10 @@ export function IntegrationsContent({ activeTab }: IntegrationsContentProps) {
     setShowSettingsModal(true);
   };
   
+  if (activeTab === 'gtm-config') {
+    return <GTMConfigSimple />;
+  }
+
   if (activeTab === 'google-ads') {
     return <GoogleAdsIntegrationFlow />;
   }

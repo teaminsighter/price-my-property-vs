@@ -61,10 +61,9 @@ export const navigationItems: NavigationItem[] = [
     id: 'tracking',
     label: 'Tracking Setup',
     icon: 'Target',
-    sections: 5,
+    sections: 4,
     tabs: [
       { id: 'datalayer', label: 'DataLayer Events' },
-      { id: 'gtm-config', label: 'GTM Config' },
       { id: 'integrations', label: 'Platform Integrations' },
       { id: 'conversion-api', label: 'Conversion API' },
       { id: 'api-keys', label: 'API Key Manager' }
@@ -86,8 +85,9 @@ export const navigationItems: NavigationItem[] = [
     id: 'integrations',
     label: 'Integrations',
     icon: 'Zap',
-    sections: 4,
+    sections: 5,
     tabs: [
+      { id: 'gtm-config', label: 'GTM Config' },
       { id: 'google-ads', label: 'Google Ads' },
       { id: 'facebook-ads', label: 'Facebook Ads' },
       { id: 'ga4', label: 'GA4' },
