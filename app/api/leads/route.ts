@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
       utmContent,
       gclid,
       fbclid,
+      // User tracking IDs
+      uniqueUserId,
       gaClientId,
       fbp,
       fbc,
@@ -87,6 +89,8 @@ export async function POST(request: NextRequest) {
         referralSource: utmContent || null, // Store utmContent in referralSource field
         gclid: gclid || null,
         fbclid: fbclid || null,
+        // User tracking IDs
+        uniqueUserId: uniqueUserId || null,
         gaClientId: gaClientId || null,
         fbp: fbp || null,
         fbc: fbc || null,

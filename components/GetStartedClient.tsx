@@ -50,6 +50,11 @@ export default function GetStartedClient() {
     utmContent: "",
     gclid: "",
     fbclid: "",
+    // User tracking IDs
+    uniqueUserId: "",
+    gaClientId: "",
+    fbp: "",
+    fbc: "",
     source: "Website Form",
   });
 
@@ -104,6 +109,20 @@ export default function GetStartedClient() {
     // Initialize GTM tracking and track form start
     GTM.initializeTracking();
     GTM.trackFormStart('property_valuation', formTracker.getSessionId?.() || undefined);
+
+    // Capture user tracking IDs
+    const userIds = GTM.getAllUserTrackingIds();
+    setFormData(prev => ({
+      ...prev,
+      uniqueUserId: userIds.visitorId || "",
+      gaClientId: userIds.gaClientId || "",
+      fbp: userIds.fbp || "",
+      fbc: userIds.fbc || "",
+    }));
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🆔 User tracking IDs captured:', userIds);
+    }
   }, []);
 
   // Step names for tracking (Note: step 16 doesn't exist, jumps from 15 to 17)

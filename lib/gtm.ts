@@ -9,6 +9,8 @@
  * - Any other GTM-integrated platform
  */
 
+import { UserTracking } from './user-tracking';
+
 // Extend Window interface for dataLayer
 declare global {
   interface Window {
@@ -31,6 +33,13 @@ export interface UTMParams {
   utm_content?: string;
   gclid?: string;
   fbclid?: string;
+}
+
+// User tracking IDs for dataLayer
+export interface UserTrackingData {
+  user_id?: string | null;
+  client_id?: string | null;
+  visitor_id?: string | null;
 }
 
 // User data for enhanced conversions (hashed)
@@ -89,24 +98,42 @@ function ensureDataLayer(): void {
 }
 
 /**
+ * Get user tracking IDs for dataLayer
+ */
+function getUserTrackingData(): UserTrackingData {
+  const visitorId = UserTracking.getVisitorId();
+  const gaClientId = UserTracking.getGAClientId();
+
+  return {
+    user_id: visitorId, // Our unique visitor ID
+    client_id: gaClientId, // GA Client ID if available
+    visitor_id: visitorId, // Alias for clarity
+  };
+}
+
+/**
  * Push event to dataLayer
  */
-function pushToDataLayer(data: DataLayerEvent): void {
+function pushToDataLayer(data: DataLayerEvent, includeUserIds: boolean = true): void {
   if (typeof window === 'undefined') return;
 
   ensureDataLayer();
 
-  // Add timestamp to all events
-  const eventWithTimestamp = {
+  // Get user tracking IDs
+  const userTracking = includeUserIds ? getUserTrackingData() : {};
+
+  // Add timestamp and user IDs to all events
+  const eventWithMetadata = {
     ...data,
+    ...userTracking,
     event_timestamp: new Date().toISOString(),
   };
 
-  window.dataLayer.push(eventWithTimestamp);
+  window.dataLayer.push(eventWithMetadata);
 
   // Debug logging in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('📊 DataLayer Push:', eventWithTimestamp);
+    console.log('📊 DataLayer Push:', eventWithMetadata);
   }
 }
 
@@ -469,6 +496,10 @@ export function initializeTracking(): void {
   // Capture and store UTM params
   const utmParams = getAllUTMParams();
 
+  // Get user tracking info
+  const isReturning = UserTracking.isReturningVisitor();
+  const sessionCount = UserTracking.getSessionCount();
+
   // Push initial page context
   pushToDataLayer({
     event: 'tracking_initialized',
@@ -480,7 +511,17 @@ export function initializeTracking(): void {
     user_agent: navigator.userAgent,
     language: navigator.language,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // User session data
+    is_returning_visitor: isReturning,
+    session_count: sessionCount,
   });
+}
+
+/**
+ * Get all user tracking IDs (for form submission)
+ */
+export function getAllUserTrackingIds() {
+  return UserTracking.getAllUserTrackingIds();
 }
 
 // Export all functions
@@ -494,6 +535,9 @@ export const GTM = {
   getStoredUTMParams,
   storeUTMParams,
   getAllUTMParams,
+
+  // User tracking
+  getAllUserTrackingIds,
 
   // Page tracking
   trackPageView,
