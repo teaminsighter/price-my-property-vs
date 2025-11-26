@@ -84,7 +84,7 @@ export default function AboutSection() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/about-team.jpg"
+                src="/images/about-team.webp"
                 alt="Price My Property team of professional real estate agents"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "400px" }}

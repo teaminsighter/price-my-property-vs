@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
+import GTM from "@/lib/gtm";
 
 function AddressFormContent() {
   const router = useRouter();
@@ -51,6 +52,15 @@ function AddressFormContent() {
     e.preventDefault();
     const address = inputRef.current?.value || "";
     if (address.trim()) {
+      // Track CTA click in GTM
+      GTM.trackCTAClick('Get Started Now', 'Hero Section', '/get-started');
+
+      // Track custom event for address submission
+      GTM.trackCustomEvent('address_submitted', {
+        address_entered: true,
+        form_location: 'hero_section'
+      });
+
       // Build URL with address and preserve UTM parameters
       const params = new URLSearchParams();
       params.set('address', address);

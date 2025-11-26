@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
       utmSource,
       utmMedium,
       utmCampaign,
+      utmTerm,
+      utmContent,
       gclid,
       fbclid,
       gaClientId,
@@ -81,6 +83,8 @@ export async function POST(request: NextRequest) {
         utmSource: utmSource || null,
         utmMedium: utmMedium || null,
         utmCampaign: utmCampaign || null,
+        keyword: utmTerm || null, // Store utmTerm in keyword field
+        referralSource: utmContent || null, // Store utmContent in referralSource field
         gclid: gclid || null,
         fbclid: fbclid || null,
         gaClientId: gaClientId || null,

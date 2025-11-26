@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Script from "next/script";
 import MapBackground from "@/components/MapBackground";
 import { formTracker } from "@/lib/form-analytics-tracker";
+import GTM from "@/lib/gtm";
 
 // Step component variants for animations
 const stepVariants = {
@@ -99,7 +100,32 @@ export default function GetStartedClient() {
   useEffect(() => {
     formTracker.createSession();
     formTracker.trackStepEnter(currentStep);
+
+    // Initialize GTM tracking and track form start
+    GTM.initializeTracking();
+    GTM.trackFormStart('property_valuation', formTracker.getSessionId?.() || undefined);
   }, []);
+
+  // Step names for tracking (Note: step 16 doesn't exist, jumps from 15 to 17)
+  const stepNames: Record<number, string> = {
+    3: 'Property Type',
+    4: 'House Size',
+    5: 'Land Size',
+    6: 'House Age',
+    7: 'Bedrooms',
+    8: 'Bathrooms',
+    9: 'CV Valuation',
+    10: 'Garage',
+    10.5: 'Garage Capacity',
+    11: 'Condition',
+    12: 'Relationship',
+    13: 'Situation',
+    14: 'Clarify Situation',
+    15: 'Extra Features',
+    16: 'Skip', // This step is skipped
+    17: 'Contact Details',
+    18: 'Thank You'
+  };
 
   // Track step changes
   useEffect(() => {
@@ -133,6 +159,15 @@ export default function GetStartedClient() {
 
       // Track enter of new step
       formTracker.trackStepEnter(currentStep);
+
+      // GTM: Track form step progression
+      GTM.trackFormProgress({
+        form_name: 'property_valuation',
+        step_number: currentStep,
+        step_name: stepNames[currentStep] || `Step ${currentStep}`,
+        total_steps: totalSteps,
+        form_session_id: formTracker.getSessionId?.() || undefined
+      });
 
       // Update ref
       previousStepRef.current = currentStep;
@@ -201,9 +236,13 @@ export default function GetStartedClient() {
         alert("Redirecting to refinancing path...");
         return;
       }
-      if (formData.otherSituation === "Listing Soon") {
-        nextStep = 14.5; // Go to recently listed question
-      }
+      // All other options go to step 15 (extra features)
+      nextStep = 15;
+    }
+
+    // Skip step 16 (doesn't exist) - go straight to 17
+    if (nextStep === 16) {
+      nextStep = 17;
     }
 
     setCurrentStep(nextStep);
@@ -230,11 +269,48 @@ export default function GetStartedClient() {
         // Mark analytics session as completed
         await formTracker.markCompleted(result.leadId);
 
+        // GTM: Track lead submission (MAIN CONVERSION EVENT)
+        GTM.trackLeadSubmission(
+          {
+            lead_id: result.leadId,
+            property_type: formData.propertyType,
+            property_value: `$${formData.cvValuation.toLocaleString()}`,
+            bedrooms: formData.bedrooms,
+            bathrooms: formData.bathrooms,
+            location: formData.address,
+            timeframe: formData.situation,
+            situation: formData.situation,
+          },
+          {
+            email: formData.email,
+            phone_number: formData.mobile,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            address: {
+              street: formData.address,
+              country: 'NZ'
+            }
+          },
+          formTracker.getSessionId?.() || undefined
+        );
+
+        // GTM: Track form completion
+        GTM.trackFormComplete(
+          'property_valuation',
+          totalSteps,
+          0, // We don't have total time tracked here
+          formTracker.getSessionId?.() || undefined
+        );
+
         setCurrentStep(18); // Go to thank you page
       } else {
+        // GTM: Track error
+        GTM.trackError('form_submission', 'API returned error', 'GetStartedClient.handleSubmit');
         alert("There was an error submitting your form. Please try again.");
       }
     } catch (error) {
+      // GTM: Track error
+      GTM.trackError('form_submission', error instanceof Error ? error.message : 'Unknown error', 'GetStartedClient.handleSubmit');
       alert("There was an error submitting your form. Please try again.");
     }
   };

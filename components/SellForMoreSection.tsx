@@ -19,7 +19,7 @@ export default function SellForMoreSection() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/sell-for-more.jpg"
+                src="/images/sell-for-more.webp"
                 alt="Happy couple looking at phone excited about selling their house"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "400px" }}

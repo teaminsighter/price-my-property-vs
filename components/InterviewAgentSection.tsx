@@ -73,7 +73,7 @@ export default function InterviewAgentSection() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/interview-agent.jpg"
+                src="/images/interview-agent.webp"
                 alt="Agent interviewing couple about their property"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "400px" }}

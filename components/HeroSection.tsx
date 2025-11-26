@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import AddressForm from "./AddressForm";
 
 const heroImages = [
-  "/images/hero-1.jpg",
-  "/images/hero-2.jpg",
-  "/images/hero-3.jpg",
+  "/images/hero-1.webp",
+  "/images/hero-2.webp",
+  "/images/hero-3.webp",
 ];
 
 export default function HeroSection() {
@@ -16,29 +16,36 @@ export default function HeroSection() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
-    }, 5000); // Change image every 5 seconds
+    }, 6000); // Change image every 6 seconds (longer for Ken Burns effect)
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <section className="relative h-screen w-full overflow-hidden">
-      {/* Background Image Slideshow */}
-      <AnimatePresence mode="wait">
+    <section className="relative h-screen w-full overflow-hidden bg-gray-900">
+      {/* Background Image Slideshow with Ken Burns Effect */}
+      <AnimatePresence mode="sync">
         <motion.div
           key={currentImageIndex}
-          initial={{ opacity: 0, scale: 1.1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 1.5 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
           className="absolute inset-0 w-full h-full"
-          style={{
-            backgroundImage: `url(${heroImages[currentImageIndex]})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
         >
+          {/* Ken Burns zoom animation on the image */}
+          <motion.div
+            initial={{ scale: 1 }}
+            animate={{ scale: 1.1 }}
+            transition={{ duration: 6, ease: "linear" }}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              backgroundImage: `url(${heroImages[currentImageIndex]})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+          />
           {/* Dark Overlay for better text readability */}
           <div className="absolute inset-0 bg-black/40" />
         </motion.div>

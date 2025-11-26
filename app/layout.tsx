@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { GTMScript } from "@/components/GTMScript";
+import GTMTrackingProvider from "@/components/GTMTrackingProvider";
 
 export const metadata: Metadata = {
   title: "Price My Property - Value Your Next Move",
@@ -27,7 +29,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <GTMScript />
-        {children}
+        <Suspense fallback={null}>
+          <GTMTrackingProvider>
+            {children}
+          </GTMTrackingProvider>
+        </Suspense>
       </body>
     </html>
   );

@@ -104,6 +104,11 @@ function GTMConfigSimple() {
       setIsConnected(true);
       setContainerId(data.settings.containerId);
       setSuccessMessage('GTM connected! The tracking code has been automatically added to your site.');
+
+      // Dispatch custom event to notify GTMScript component to reload
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gtm-settings-updated'));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect GTM');
     } finally {
@@ -132,7 +137,12 @@ function GTMConfigSimple() {
 
       setIsConnected(false);
       setContainerId('');
-      setSuccessMessage('GTM disconnected successfully.');
+      setSuccessMessage('GTM disconnected successfully. Note: Full removal requires a page refresh.');
+
+      // Dispatch custom event to notify GTMScript component
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gtm-settings-updated'));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect GTM');
     } finally {

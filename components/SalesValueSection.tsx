@@ -92,7 +92,7 @@ export default function SalesValueSection() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/sales-value.jpg"
+                src="/images/virtual-v2.webp"
                 alt="Real estate agent presenting property details to couple"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "500px" }}

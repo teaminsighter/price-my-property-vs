@@ -49,7 +49,7 @@ export default function RefinancingSection() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/mortgage-refinance.jpg"
+                src="/images/refinancing-your-mortgage.webp"
                 alt="Mortgage refinance application on laptop"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "400px" }}

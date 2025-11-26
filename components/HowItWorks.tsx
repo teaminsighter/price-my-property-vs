@@ -98,7 +98,7 @@ export default function HowItWorks() {
           >
             <div className="relative rounded-lg overflow-hidden shadow-2xl">
               <img
-                src="/images/how-it-works.jpg"
+                src="/images/selling-home-v2.webp"
                 alt="Real estate agent showing property details to couple"
                 className="w-full h-auto object-cover"
                 style={{ minHeight: "400px" }}
