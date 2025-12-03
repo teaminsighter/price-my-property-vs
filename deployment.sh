@@ -180,7 +180,7 @@ if [ -f "prisma/schema.prisma" ]; then
 
     # Generate Prisma Client (CRITICAL: Must run before build)
     log "Generating Prisma Client..."
-    node node_modules/prisma/build/index.js generate || error "Failed to generate Prisma client - build will fail without this!"
+    npx prisma@6.19.0 generate || error "Failed to generate Prisma client - build will fail without this!"
 
     log "✅ Prisma Client generated successfully"
 else
@@ -194,9 +194,6 @@ fi
 log "🗄️  Running database migrations..."
 
 if [ -f "prisma/schema.prisma" ]; then
-    # Define local prisma command
-    PRISMA_CMD="node node_modules/prisma/build/index.js"
-
     # Check if this is first deployment (no migrations exist yet)
     if [ ! -d "prisma/migrations" ] || [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
         log "📋 First deployment detected - creating initial migration..."
@@ -205,16 +202,16 @@ if [ -f "prisma/schema.prisma" ]; then
         mkdir -p prisma/migrations
 
         # Use db push for initial schema setup, then baseline
-        $PRISMA_CMD db push || error "Failed to push initial schema to database"
+        npx prisma@6.19.0 db push || error "Failed to push initial schema to database"
 
         # Mark current schema as baseline (creates _prisma_migrations table)
-        $PRISMA_CMD migrate resolve --applied "0000_init" 2>/dev/null || true
+        npx prisma@6.19.0 migrate resolve --applied "0000_init" 2>/dev/null || true
 
         log "✅ Initial database schema created"
     else
         # Normal deployment - run pending migrations
         log "📋 Running pending migrations..."
-        $PRISMA_CMD migrate deploy || error "Failed to run database migrations"
+        npx prisma@6.19.0 migrate deploy || error "Failed to run database migrations"
         log "✅ Migrations applied successfully"
     fi
 else
