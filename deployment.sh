@@ -67,6 +67,21 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 #################################################
+# Clean up old PM2 processes FIRST
+#################################################
+
+log "🧹 Cleaning up old PM2 processes..."
+
+# Stop and delete ALL PM2 processes to start fresh
+# This prevents old processes from wrong directories from interfering
+pm2 delete all 2>/dev/null || true
+
+# Save empty state to clear the dump file
+pm2 save --force 2>/dev/null || true
+
+log "✅ PM2 processes cleaned"
+
+#################################################
 # Backup current deployment
 #################################################
 
@@ -242,19 +257,6 @@ log "✅ Build completed successfully"
 #################################################
 
 log "🔄 Deploying with PM2..."
-
-# Always delete and recreate PM2 process to ensure correct directory
-# This prevents issues where PM2 points to an old/wrong directory
-if pm2 list | grep -q "$APP_NAME"; then
-    log "🗑️  Deleting existing PM2 process (will recreate with correct path)..."
-    pm2 delete "$APP_NAME" || warning "Failed to delete existing PM2 process"
-fi
-
-# Also delete old process names that might exist
-if pm2 list | grep -q "price-my-property"; then
-    log "🗑️  Deleting old 'price-my-property' PM2 process..."
-    pm2 delete "price-my-property" || warning "Failed to delete old PM2 process"
-fi
 
 log "🆕 Starting PM2 process from $(pwd)..."
 
