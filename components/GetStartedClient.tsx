@@ -8,6 +8,9 @@ import Script from "next/script";
 import MapBackground from "@/components/MapBackground";
 import { formTracker } from "@/lib/form-analytics-tracker";
 import GTM from "@/lib/gtm";
+import { PhoneVerificationModal } from "@/components/PhoneVerificationModal";
+import { usePhoneVerification } from "@/hooks/use-phone-verification";
+import { formatPhoneNumber, isValidNZPhone } from "@/lib/phone-utils";
 
 // Step component variants for animations
 const stepVariants = {
@@ -22,8 +25,23 @@ export default function GetStartedClient() {
   const [currentStep, setCurrentStep] = useState(3); // Start at Property Type step
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   const previousStepRef = useRef(3);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
+
+  // Phone verification hook
+  const {
+    isVerificationOpen,
+    phoneToVerify,
+    verificationId,
+    isVerified,
+    startVerification,
+    handleVerified,
+    closeVerification,
+    resetVerification,
+  } = usePhoneVerification();
   const [formData, setFormData] = useState({
     address: "",
+    postal: "",
     propertyType: "",
     houseSqm: 250,
     landSize: 625,
@@ -60,9 +78,10 @@ export default function GetStartedClient() {
 
   const totalSteps = 16; // Reduced from 17 since we removed the address step
 
-  // Get address and UTM parameters from URL query parameters
+  // Get address, postal and UTM parameters from URL query parameters
   useEffect(() => {
     const addressFromUrl = searchParams.get("address");
+    const postalFromUrl = searchParams.get("postal");
     const utmSource = searchParams.get("utm_source");
     const utmMedium = searchParams.get("utm_medium");
     const utmCampaign = searchParams.get("utm_campaign");
@@ -74,6 +93,7 @@ export default function GetStartedClient() {
     setFormData(prev => ({
       ...prev,
       ...(addressFromUrl && { address: addressFromUrl }),
+      ...(postalFromUrl && { postal: postalFromUrl }),
       ...(utmSource && { utmSource }),
       ...(utmMedium && { utmMedium }),
       ...(utmCampaign && { utmCampaign }),
@@ -271,15 +291,19 @@ export default function GetStartedClient() {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = async () => {
+  // Submit form first, then start phone verification
+  const submitForm = async () => {
     try {
-      // Submit to API
+      // Submit to API (without phone verification - that comes after)
       const response = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          phoneVerified: false, // Will be updated after phone verification
+        }),
       });
 
       const result = await response.json();
@@ -321,7 +345,9 @@ export default function GetStartedClient() {
           formTracker.getSessionId?.() || undefined
         );
 
-        setCurrentStep(18); // Go to thank you page
+        // Save lead ID and start phone verification
+        setCreatedLeadId(result.leadId);
+        startVerification(formData.mobile);
       } else {
         // GTM: Track error
         GTM.trackError('form_submission', 'API returned error', 'GetStartedClient.handleSubmit');
@@ -332,6 +358,59 @@ export default function GetStartedClient() {
       GTM.trackError('form_submission', error instanceof Error ? error.message : 'Unknown error', 'GetStartedClient.handleSubmit');
       alert("There was an error submitting your form. Please try again.");
     }
+  };
+
+  // Handle submit button click - validate and submit form
+  const handleSubmit = () => {
+    // Validate required fields
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.mobile) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    // Validate phone number format
+    if (!isValidNZPhone(formData.mobile)) {
+      setPhoneError("Please enter a valid NZ phone number");
+      return;
+    }
+
+    setPhoneError(null);
+
+    // Submit form directly - phone verification will happen after
+    submitForm();
+  };
+
+  // Handle successful phone verification - mark lead as verified
+  const onPhoneVerified = async (verificationId: string) => {
+    handleVerified(verificationId);
+
+    // Call API to mark lead as verified (local + CRM)
+    if (createdLeadId) {
+      try {
+        const response = await fetch('/api/leads/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            leadId: createdLeadId,
+            verificationId: verificationId,
+          }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          console.log('Lead marked as verified');
+        } else {
+          console.error('Failed to mark lead as verified:', result.error);
+        }
+      } catch (error) {
+        console.error('Error marking lead as verified:', error);
+      }
+    }
+
+    // Go to thank you page
+    setCurrentStep(18);
   };
 
   const updateFormData = (field: string, value: any) => {
@@ -692,13 +771,32 @@ export default function GetStartedClient() {
                 placeholder="Email"
                 className="w-full px-6 py-4 border-2 border-white/30 bg-white/10 backdrop-blur-sm rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-gray-900 placeholder-gray-600"
               />
-              <input
-                type="tel"
-                value={formData.mobile}
-                onChange={(e) => updateFormData("mobile", e.target.value)}
-                placeholder="Mobile"
-                className="w-full px-6 py-4 border-2 border-white/30 bg-white/10 backdrop-blur-sm rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-gray-900 placeholder-gray-600"
-              />
+              <div>
+                <input
+                  type="tel"
+                  value={formData.mobile}
+                  onChange={(e) => {
+                    const formatted = formatPhoneNumber(e.target.value);
+                    updateFormData("mobile", formatted);
+                    setPhoneError(null);
+                  }}
+                  placeholder="Mobile (e.g., 021 234 5678)"
+                  className={`w-full px-6 py-4 border-2 bg-white/10 backdrop-blur-sm rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-gray-900 placeholder-gray-600 ${
+                    phoneError ? 'border-red-500' : 'border-white/30'
+                  }`}
+                />
+                {phoneError && (
+                  <p className="text-red-500 text-sm mt-1">{phoneError}</p>
+                )}
+                {isVerified && phoneToVerify === formData.mobile && (
+                  <p className="text-green-600 text-sm mt-1 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Phone verified
+                  </p>
+                )}
+              </div>
             </div>
           </StepContainer>
         );
@@ -842,6 +940,14 @@ export default function GetStartedClient() {
         </div>
       </div>
     </div>
+
+    {/* Phone Verification Modal */}
+    <PhoneVerificationModal
+      isOpen={isVerificationOpen}
+      onClose={closeVerification}
+      phone={phoneToVerify}
+      onVerified={onPhoneVerified}
+    />
     </>
   );
 }

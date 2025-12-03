@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -11,6 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -35,7 +41,16 @@ import {
   Search,
   X,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  User,
+  MapPin,
+  Home,
+  Building,
+  Clock,
+  Tag,
+  ExternalLink,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -155,6 +170,10 @@ interface Lead {
   customField4?: string;
   customField5?: string;
 
+  // External CRM
+  externalLeadId?: string;
+  activeCampaignId?: string;
+
   // 🆕 Phase 2: Attribution & Source Analysis
   firstTouchSource?: string;
   firstTouchMedium?: string;
@@ -250,6 +269,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   // Form Data
   { id: 'formType', label: 'Form Type', category: 'form-data', visible: false, sortable: true, width: '120px' },
   { id: 'address', label: 'Property Address', category: 'form-data', visible: true, sortable: true, width: '200px' },
+  { id: 'zipCode', label: 'Postal Code', category: 'form-data', visible: true, sortable: true, width: '100px' },
   { id: 'propertyType', label: 'Property Type', category: 'form-data', visible: true, sortable: true, width: '120px' },
   { id: 'propertyValue', label: 'Property Value', category: 'form-data', visible: true, sortable: true, width: '130px' },
   { id: 'bedrooms', label: 'Bedrooms', category: 'form-data', visible: true, sortable: true, width: '100px' },
@@ -287,6 +307,10 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { id: 'firstVisitUrl', label: 'First Visit URL', category: 'tracking', visible: false, sortable: true, width: '150px' },
   { id: 'lastVisitUrl', label: 'Last Visit URL', category: 'tracking', visible: false, sortable: true, width: '150px' },
   
+  // External CRM
+  { id: 'externalLeadId', label: 'External Lead ID', category: 'crm', visible: false, sortable: true, width: '130px' },
+  { id: 'activeCampaignId', label: 'ActiveCampaign ID', category: 'crm', visible: true, sortable: true, width: '140px' },
+
   // A/B Testing
   { id: 'abTest', label: 'A/B Test', category: 'ab-testing', visible: false, sortable: true, width: '100px' },
   { id: 'abVariant', label: 'A/B Variant', category: 'ab-testing', visible: false, sortable: true, width: '110px' },
@@ -485,6 +509,11 @@ export function LeadManagementTable({
   const [compareStartDate, setCompareStartDate] = useState<Date | undefined>(undefined);
   const [compareEndDate, setCompareEndDate] = useState<Date | undefined>(undefined);
 
+  // Lead details modal state
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showLeadDetails, setShowLeadDetails] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   // Apply date filtering to leads
   const dateFilteredLeads = React.useMemo(() => {
     if (dateFilter === 'all-time') {
@@ -593,7 +622,40 @@ export function LeadManagementTable({
   };
 
   const handleLeadAction = (leadId: string, action: string) => {
-    console.log(`Performing ${action} on lead ${leadId}`);
+    if (action === 'view') {
+      const lead = dateFilteredLeads.find(l => l.id === leadId);
+      if (lead) {
+        setSelectedLead(lead);
+        setShowLeadDetails(true);
+      }
+    } else {
+      console.log(`Performing ${action} on lead ${leadId}`);
+    }
+  };
+
+  // Open lead details on row click
+  const handleRowClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowLeadDetails(true);
+  };
+
+  // Copy to clipboard helper
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-NZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const handleBulkAction = (action: string) => {
@@ -1142,13 +1204,19 @@ export function LeadManagementTable({
 
             {/* Dynamic Rows */}
             {dateFilteredLeads.map((lead) => (
-              <div key={lead.id} className="flex items-center py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50" style={{ minWidth: `${dynamicTableWidth}px` }}>
+              <div
+                key={lead.id}
+                className="flex items-center py-3 border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer transition-colors"
+                style={{ minWidth: `${dynamicTableWidth}px` }}
+                onClick={() => handleRowClick(lead)}
+              >
                 {/* Fixed checkbox column */}
-                <div 
+                <div
                   className="px-3 flex-shrink-0 border-r border-gray-200"
                   style={{ width: '60px', minWidth: '60px' }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Checkbox 
+                  <Checkbox
                     checked={selectedLeads.includes(lead.id)}
                     onCheckedChange={(checked) => {
                       if (checked) {
@@ -1171,7 +1239,7 @@ export function LeadManagementTable({
                     }}
                   >
                     {column.id === 'actions' ? (
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleLeadAction(lead.id, 'view')}>
@@ -1239,6 +1307,279 @@ export function LeadManagementTable({
           </div>
         </div>
       </div>
+
+      {/* Lead Details Modal */}
+      <Dialog open={showLeadDetails} onOpenChange={setShowLeadDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <span className="font-bold">{selectedLead?.name || 'Lead Details'}</span>
+                {selectedLead?.status && (
+                  <Badge className="ml-3" variant={
+                    selectedLead.status === 'new' ? 'default' :
+                    selectedLead.status === 'won' ? 'default' :
+                    selectedLead.status === 'lost' ? 'destructive' : 'secondary'
+                  }>
+                    {String(selectedLead.status).toUpperCase()}
+                  </Badge>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedLead && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              {/* Contact Information */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <User className="h-4 w-4 text-blue-500" />
+                  Contact Information
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Name</span>
+                    <span className="font-medium">{selectedLead.firstName} {selectedLead.lastName}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="text-gray-500">Email</span>
+                    <div className="flex items-center gap-2">
+                      <a href={`mailto:${selectedLead.email}`} className="font-medium text-blue-600 hover:underline">
+                        {selectedLead.email}
+                      </a>
+                      <button
+                        onClick={() => copyToClipboard(selectedLead.email, 'email')}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedField === 'email' ? (
+                          <CheckCheck className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="text-gray-500">Phone</span>
+                    <div className="flex items-center gap-2">
+                      <a href={`tel:${selectedLead.phone}`} className="font-medium text-blue-600 hover:underline">
+                        {selectedLead.phone}
+                      </a>
+                      <button
+                        onClick={() => copyToClipboard(selectedLead.phone, 'phone')}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedField === 'phone' ? (
+                          <CheckCheck className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Phone Verified</span>
+                    {selectedLead.phoneVerified ? (
+                      <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-gray-500 flex items-center gap-1">
+                        <XCircle className="h-3 w-3" />
+                        Not Verified
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Property Information */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <Home className="h-4 w-4 text-green-500" />
+                  Property Details
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Address</span>
+                    <span className="font-medium text-right max-w-[60%] truncate" title={selectedLead.address}>
+                      {selectedLead.address || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Postal Code</span>
+                    <span className="font-medium">{selectedLead.zipCode || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Property Type</span>
+                    <span className="font-medium">{selectedLead.propertyType || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Bedrooms</span>
+                    <span className="font-medium">{selectedLead.bedrooms || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Property Value</span>
+                    <span className="font-medium">{selectedLead.propertyValue || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Condition</span>
+                    <span className="font-medium">{selectedLead.propertyCondition || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Situation & Intent */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <Tag className="h-4 w-4 text-purple-500" />
+                  Situation & Intent
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Relationship</span>
+                    <span className="font-medium">{selectedLead.businessType || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Situation</span>
+                    <span className="font-medium">{selectedLead.urgency || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Timeframe</span>
+                    <span className="font-medium">{selectedLead.timeframe || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Temperature</span>
+                    <Badge variant={
+                      selectedLead.temperature === 'hot' ? 'destructive' :
+                      selectedLead.temperature === 'warm' ? 'default' : 'secondary'
+                    }>
+                      {selectedLead.temperature || 'cold'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Marketing Attribution */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <Globe className="h-4 w-4 text-orange-500" />
+                  Marketing Attribution
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Source</span>
+                    <span className="font-medium">{selectedLead.source || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">UTM Source</span>
+                    <span className="font-medium">{selectedLead.utmSource || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">UTM Medium</span>
+                    <span className="font-medium">{selectedLead.utmMedium || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">UTM Campaign</span>
+                    <span className="font-medium">{selectedLead.utmCampaign || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CRM Integration */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <Building className="h-4 w-4 text-indigo-500" />
+                  CRM Integration
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Lead ID</span>
+                    <code className="text-xs bg-gray-200 px-2 py-0.5 rounded">{selectedLead.id}</code>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">External Lead ID</span>
+                    <span className="font-medium">{selectedLead.externalLeadId || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">ActiveCampaign ID</span>
+                    <span className="font-medium">{selectedLead.activeCampaignId || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  Activity Timeline
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Created</span>
+                    <span className="font-medium">{formatDate(selectedLead.createdAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Last Activity</span>
+                    <span className="font-medium">{selectedLead.lastActivity ? formatDate(selectedLead.lastActivity) : 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Steps Completed</span>
+                    <span className="font-medium">{selectedLead.stepsCompleted || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Completion Rate</span>
+                    <span className="font-medium">{selectedLead.completionRate ? `${selectedLead.completionRate}%` : 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Extra Features (if any) */}
+              {selectedLead.marketingPreferences && (
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3 md:col-span-2">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2 border-b pb-2">
+                    <CheckCircle className="h-4 w-4 text-teal-500" />
+                    Extra Features
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      try {
+                        const features = JSON.parse(selectedLead.marketingPreferences);
+                        return Array.isArray(features) ? features.map((feature: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="bg-white">
+                            {feature}
+                          </Badge>
+                        )) : <span className="text-sm text-gray-500">{selectedLead.marketingPreferences}</span>;
+                      } catch {
+                        return <span className="text-sm text-gray-500">{selectedLead.marketingPreferences}</span>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowLeadDetails(false)}>
+              Close
+            </Button>
+            <Button variant="default" onClick={() => selectedLead && window.open(`mailto:${selectedLead.email}`, '_blank')}>
+              <Mail className="h-4 w-4 mr-2" />
+              Send Email
+            </Button>
+            <Button variant="default" onClick={() => selectedLead && window.open(`tel:${selectedLead.phone}`, '_blank')}>
+              <Phone className="h-4 w-4 mr-2" />
+              Call
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -16,6 +16,11 @@ export class FormAnalyticsTracker {
   private currentStepStart: number = 0;
   private isInitialized: boolean = false;
 
+  // Get current session ID
+  getSessionId(): string | null {
+    return this.sessionId;
+  }
+
   // Step names mapping
   private stepNames: Record<number, string> = {
     3: 'Property Type',

@@ -212,6 +212,10 @@ model Lead {
   fbp        String? // Facebook Browser Pixel ID from _fbp cookie
   fbc        String? // Facebook Click ID from _fbc cookie
 
+  // ===== External CRM (2 fields) =====
+  externalLeadId    String? // Lead ID from external CRM (pmpcms)
+  activeCampaignId  String? // ActiveCampaign Contact ID
+
   updatedAt DateTime @updatedAt
 
   @@index([email])
@@ -418,7 +422,7 @@ model FormAnalytics {
 
   // Step Tracking - JSON array of step events
   // Format: [{step: 3, stepName: "Property Type", enteredAt: "...", leftAt: "...", duration: 8, answer: "Free Standing", wasSkipped: false}]
-  stepHistory  String?   // JSON string
+  stepHistory  String?   @db.Text // JSON string
 
   // Progress Tracking
   currentStep      Int     @default(3)
@@ -426,7 +430,7 @@ model FormAnalytics {
   stepsCompleted   Int     @default(0)
 
   // Answer Data - Complete form state as JSON
-  answers      String?   // JSON string of all answers
+  answers      String?   @db.Text // JSON string of all answers
 
   // Timing Metrics
   totalDuration    Int?     // Total time in seconds
@@ -470,4 +474,36 @@ model FormAnalytics {
   @@index([leadId])
   @@index([exitStep])
   @@map("form_analytics")
+}
+
+// ============================================
+// PHONE VERIFICATION MODEL
+// ============================================
+model PhoneVerification {
+  id    String @id @default(cuid())
+  phone String // The phone number being verified
+
+  // Verification details
+  code          String   // 6-digit verification code
+  verified      Boolean  @default(false)
+  attemptCount  Int      @default(0)
+  maxAttempts   Int      @default(3)
+
+  // Timing
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime  // Verification code expires (usually 10 minutes)
+  verifiedAt DateTime? // When it was successfully verified
+
+  // Linking
+  leadId    String? // Optional - link to lead being created
+  sessionId String? // Session ID for tracking
+
+  // Security
+  ipAddress String?
+  userAgent String?
+
+  @@index([phone])
+  @@index([code])
+  @@index([createdAt])
+  @@map("phone_verifications")
 }

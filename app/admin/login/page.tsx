@@ -87,10 +87,6 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Default: admin@pricemyproperty.com / admin123
-        </p>
       </div>
     </div>
   );

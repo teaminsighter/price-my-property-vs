@@ -8,7 +8,7 @@ import SalesValueSection from "@/components/SalesValueSection";
 import RefinancingSection from "@/components/RefinancingSection";
 import SellForMoreSection from "@/components/SellForMoreSection";
 import InterviewAgentSection from "@/components/InterviewAgentSection";
-import ArticlesSection from "@/components/ArticlesSection";
+// import ArticlesSection from "@/components/ArticlesSection"; // TODO: Enable when article images are added
 import AboutSection from "@/components/AboutSection";
 import ScrollingText from "@/components/ScrollingText";
 import Footer from "@/components/Footer";
@@ -24,7 +24,7 @@ export default function Home() {
       <RefinancingSection />
       <SellForMoreSection />
       <InterviewAgentSection />
-      <ArticlesSection />
+      {/* <ArticlesSection /> */}
       <AboutSection />
       <ScrollingText />
       <Footer />

@@ -17,6 +17,7 @@ export default function Footer() {
           >
             <h3 className="text-xl font-bold mb-4">Quick Links</h3>
             <ul className="space-y-2">
+              {/* TODO: Enable when page is created
               <li>
                 <Link
                   href="/disclosure"
@@ -25,6 +26,7 @@ export default function Footer() {
                   Disclosure and Privacy Policy
                 </Link>
               </li>
+              */}
             </ul>
           </motion.div>
 

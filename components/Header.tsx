@@ -56,8 +56,9 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Navigation */}
+          {/* Navigation - Links disabled until pages are created */}
           <nav className="hidden md:flex items-center space-x-8">
+            {/* TODO: Enable when pages are created
             <Link
               href="/about"
               className="text-gray-700 hover:text-primary transition-colors font-medium"
@@ -76,6 +77,7 @@ export default function Header() {
             >
               ARTICLES
             </Link>
+            */}
           </nav>
 
           {/* Mobile Menu Button */}

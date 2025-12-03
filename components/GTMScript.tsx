@@ -113,13 +113,6 @@ export function GTMScript() {
   return null;
 }
 
-// Extend Window interface for dataLayer
-declare global {
-  interface Window {
-    dataLayer: Record<string, unknown>[];
-  }
-}
-
 export function GTMNoScript({ containerId }: { containerId: string }) {
   if (!containerId) return null;
 
