@@ -67,19 +67,21 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 #################################################
-# Clean up old PM2 processes FIRST
+# Clean up old PM2 processes for THIS PROJECT only
 #################################################
 
-log "🧹 Cleaning up old PM2 processes..."
+log "🧹 Cleaning up old PM2 processes for this project..."
 
-# Stop and delete ALL PM2 processes to start fresh
-# This prevents old processes from wrong directories from interfering
-pm2 delete all 2>/dev/null || true
+# Delete processes matching this project (various naming patterns)
+pm2 delete "$APP_NAME" 2>/dev/null || true
+pm2 delete "pricemyproperty" 2>/dev/null || true
+pm2 delete "price-my-property" 2>/dev/null || true
+pm2 delete "price-my-property-vs" 2>/dev/null || true
 
-# Save empty state to clear the dump file
+# Save PM2 state after cleanup
 pm2 save --force 2>/dev/null || true
 
-log "✅ PM2 processes cleaned"
+log "✅ Old project processes cleaned"
 
 #################################################
 # Backup current deployment
