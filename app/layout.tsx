@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { GTMScript } from "@/components/GTMScript";
 import GTMTrackingProvider from "@/components/GTMTrackingProvider";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 
 export const metadata: Metadata = {
   title: "Price My Property - Value Your Next Move",
@@ -31,6 +32,7 @@ export default function RootLayout({
         <GTMScript />
         <Suspense fallback={null}>
           <GTMTrackingProvider>
+            <AnalyticsTracker />
             {children}
           </GTMTrackingProvider>
         </Suspense>

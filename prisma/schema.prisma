@@ -507,3 +507,78 @@ model PhoneVerification {
   @@index([createdAt])
   @@map("phone_verifications")
 }
+
+// ============================================
+// VISITOR SESSION MODEL - Real-time Analytics
+// ============================================
+model VisitorSession {
+  id        String   @id @default(cuid())
+  visitorId String   // Unique visitor ID (from localStorage)
+
+  // Session info
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  isActive  Boolean  @default(true)
+  lastPing  DateTime @default(now())
+
+  // Device & Browser
+  userAgent String?  @db.Text
+  device    String?  // desktop, mobile, tablet
+  browser   String?
+  os        String?
+
+  // Location
+  country   String?
+  city      String?
+  region    String?
+  ipAddress String?
+
+  // Referral
+  referrer     String? @db.Text
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+
+  // Aggregates (updated on session end)
+  pageViews    Int @default(0)
+  duration     Int @default(0) // in seconds
+
+  // Relations
+  pageViews_rel PageView[]
+
+  @@index([visitorId])
+  @@index([startedAt])
+  @@index([isActive])
+  @@index([lastPing])
+  @@map("visitor_sessions")
+}
+
+// ============================================
+// PAGE VIEW MODEL - Track individual page views
+// ============================================
+model PageView {
+  id        String   @id @default(cuid())
+  sessionId String
+  visitorId String
+
+  // Page info
+  path      String
+  title     String?
+  referrer  String? @db.Text
+
+  // Timing
+  viewedAt  DateTime @default(now())
+  duration  Int?     // Time on page in seconds (set when leaving)
+
+  // Scroll depth
+  scrollDepth Int?   // Percentage scrolled (0-100)
+
+  // Relations
+  session   VisitorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([path])
+  @@index([viewedAt])
+  @@map("page_views")
+}

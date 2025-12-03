@@ -104,6 +104,43 @@ export function ProfessionalRealtimeAnalytics() {
 
   const [visitorActivity, setVisitorActivity] = useState<VisitorActivity[]>([]);
 
+  // Conversion tracking data
+  interface ConversionData {
+    summary: {
+      totalVisitors: number;
+      totalConversions: number;
+      overallConversionRate: string;
+      period: string;
+    };
+    pivotData: Array<{
+      sessionId: string;
+      visitorId: string;
+      startedAt: string;
+      device: string;
+      browser: string;
+      pageViews: number;
+      duration: number;
+      pagesVisited: string[];
+      firstPage: string;
+      lastPage: string;
+      converted: boolean;
+      lead: {
+        id: string;
+        name: string;
+        email: string;
+        phoneVerified: boolean;
+        convertedAt: string;
+      } | null;
+    }>;
+    pageConversionRates: Array<{
+      path: string;
+      visitors: number;
+      conversions: number;
+      conversionRate: string;
+    }>;
+  }
+  const [conversionData, setConversionData] = useState<ConversionData | null>(null);
+
   const [chartData, setChartData] = useState([
     { time: '14:15', visitors: 0, pageViews: 0, conversions: 0 },
     { time: '14:20', visitors: 0, pageViews: 0, conversions: 0 },
@@ -113,10 +150,96 @@ export function ProfessionalRealtimeAnalytics() {
     { time: '14:40', visitors: 0, pageViews: 0, conversions: 0 }
   ]);
 
-  // Real-time updates - disabled for demo data removal
+  // Fetch conversion data
+  const fetchConversionData = async () => {
+    try {
+      const response = await fetch('/api/analytics/conversions?days=7');
+      const result = await response.json();
+      if (result.success) {
+        setConversionData(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch conversion data:', error);
+    }
+  };
+
+  // Fetch real-time data from API
+  const fetchRealtimeData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/analytics/realtime');
+      const result = await response.json();
+
+      if (result.success) {
+        const data = result.data;
+
+        // Update metrics
+        setRealtimeMetrics({
+          activeVisitors: data.activeVisitors,
+          pageViews: data.todayPageViews,
+          bounceRate: parseFloat(data.bounceRate),
+          avgSessionDuration: formatDuration(data.avgSessionDuration),
+          conversionRate: parseFloat(data.conversionRate),
+          topPages: data.topPages.map((p: { path: string; views: number; percent: string }) => ({
+            page: p.path,
+            views: p.views,
+            percentage: parseFloat(p.percent),
+          })),
+          deviceBreakdown: [
+            { device: 'Desktop', count: data.deviceBreakdown.desktop.count, percentage: parseFloat(data.deviceBreakdown.desktop.percent) },
+            { device: 'Mobile', count: data.deviceBreakdown.mobile.count, percentage: parseFloat(data.deviceBreakdown.mobile.percent) },
+            { device: 'Tablet', count: data.deviceBreakdown.tablet.count, percentage: parseFloat(data.deviceBreakdown.tablet.percent) },
+          ],
+          geographicData: realtimeMetrics.geographicData, // Keep existing for now
+        });
+
+        // Update chart data
+        setChartData(data.chartData);
+
+        // Update visitor activity
+        setVisitorActivity(data.recentActivity.map((a: { id: string; time: string; path: string; device: string; location: string }) => ({
+          id: a.id,
+          timestamp: new Date(a.time).toLocaleTimeString(),
+          action: 'Page View',
+          page: a.path,
+          userAgent: a.device || 'Unknown',
+          location: a.location,
+          sessionDuration: '-',
+          isNew: false,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch real-time data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Format duration in seconds to human readable
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  // Real-time updates
   useEffect(() => {
-    // Real-time updates would be fetched from database here
-    return () => {};
+    // Initial fetch
+    fetchRealtimeData();
+    fetchConversionData();
+
+    // Set up polling if live
+    let interval: NodeJS.Timeout | null = null;
+    if (isLive) {
+      interval = setInterval(() => {
+        fetchRealtimeData();
+        fetchConversionData();
+      }, 10000); // Update every 10 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isLive]);
 
   const handleToggleLive = () => {
@@ -124,10 +247,7 @@ export function ProfessionalRealtimeAnalytics() {
   };
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    fetchRealtimeData();
   };
 
   const handleExport = () => {
@@ -608,6 +728,137 @@ export function ProfessionalRealtimeAnalytics() {
                 </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Visitor to Lead Conversion Pivot Table */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" style={{ color: '#f87416' }} />
+                Visitor → Lead Conversions
+              </CardTitle>
+              <p className="text-sm text-gray-500">
+                {conversionData?.summary.period || 'Last 7 days'} •
+                {' '}{conversionData?.summary.totalConversions || 0} conversions from {conversionData?.summary.totalVisitors || 0} visitors
+                {' '}({conversionData?.summary.overallConversionRate || '0'}% rate)
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Page Conversion Rates */}
+          {conversionData?.pageConversionRates && conversionData.pageConversionRates.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Page Conversion Rates</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left p-2 font-medium text-gray-600">Page</th>
+                      <th className="text-right p-2 font-medium text-gray-600">Visitors</th>
+                      <th className="text-right p-2 font-medium text-gray-600">Conversions</th>
+                      <th className="text-right p-2 font-medium text-gray-600">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conversionData.pageConversionRates.slice(0, 10).map((page) => (
+                      <tr key={page.path} className="border-b hover:bg-gray-50">
+                        <td className="p-2 font-mono text-xs">{page.path}</td>
+                        <td className="p-2 text-right">{page.visitors}</td>
+                        <td className="p-2 text-right">
+                          <span className={page.conversions > 0 ? 'text-green-600 font-medium' : ''}>
+                            {page.conversions}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right">
+                          <span className={parseFloat(page.conversionRate) > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                            {page.conversionRate}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Visitor Sessions with Conversion Status */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Recent Visitors</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left p-2 font-medium text-gray-600">Visitor</th>
+                    <th className="text-left p-2 font-medium text-gray-600">Device</th>
+                    <th className="text-left p-2 font-medium text-gray-600">Pages</th>
+                    <th className="text-left p-2 font-medium text-gray-600">Journey</th>
+                    <th className="text-center p-2 font-medium text-gray-600">Converted</th>
+                    <th className="text-left p-2 font-medium text-gray-600">Lead</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conversionData?.pivotData?.slice(0, 20).map((visitor) => (
+                    <tr key={visitor.sessionId} className={`border-b hover:bg-gray-50 ${visitor.converted ? 'bg-green-50' : ''}`}>
+                      <td className="p-2">
+                        <div className="font-mono text-xs text-gray-500">{visitor.visitorId.slice(0, 12)}...</div>
+                        <div className="text-xs text-gray-400">{new Date(visitor.startedAt).toLocaleString()}</div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-1">
+                          {visitor.device === 'desktop' && <Monitor className="h-3 w-3" />}
+                          {visitor.device === 'mobile' && <Smartphone className="h-3 w-3" />}
+                          {visitor.device === 'tablet' && <Tablet className="h-3 w-3" />}
+                          <span className="capitalize">{visitor.device || 'Unknown'}</span>
+                        </div>
+                      </td>
+                      <td className="p-2 text-center">{visitor.pageViews}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-1 text-xs">
+                          <span className="font-mono bg-gray-100 px-1 rounded">{visitor.firstPage}</span>
+                          {visitor.pagesVisited.length > 1 && (
+                            <>
+                              <span className="text-gray-400">→</span>
+                              <span className="font-mono bg-gray-100 px-1 rounded">{visitor.lastPage}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2 text-center">
+                        {visitor.converted ? (
+                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Yes</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-400">No</Badge>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {visitor.lead ? (
+                          <div>
+                            <div className="font-medium text-sm">{visitor.lead.name}</div>
+                            <div className="text-xs text-gray-500">{visitor.lead.email}</div>
+                            {visitor.lead.phoneVerified && (
+                              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-xs mt-1">Verified</Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {(!conversionData?.pivotData || conversionData.pivotData.length === 0) && (
+                <div className="text-center py-8 text-gray-500">
+                  No visitor data yet. Visit the site to start tracking.
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

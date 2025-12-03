@@ -27,6 +27,7 @@ export default function GetStartedClient() {
   const previousStepRef = useRef(3);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
+  const createdLeadIdRef = useRef<string | null>(null); // Ref for sync access
 
   // Phone verification hook
   const {
@@ -347,6 +348,7 @@ export default function GetStartedClient() {
 
         // Save lead ID and start phone verification
         setCreatedLeadId(result.leadId);
+        createdLeadIdRef.current = result.leadId; // Sync ref for immediate access
         startVerification(formData.mobile);
       } else {
         // GTM: Track error
@@ -385,7 +387,10 @@ export default function GetStartedClient() {
     handleVerified(verificationId);
 
     // Call API to mark lead as verified (local + CRM)
-    if (createdLeadId) {
+    // Use ref for sync access since state may not be updated yet
+    const leadId = createdLeadIdRef.current;
+    console.log('[Verify] Marking lead as verified, leadId:', leadId);
+    if (leadId) {
       try {
         const response = await fetch('/api/leads/verify', {
           method: 'POST',
@@ -393,7 +398,7 @@ export default function GetStartedClient() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            leadId: createdLeadId,
+            leadId: leadId,
             verificationId: verificationId,
           }),
         });
