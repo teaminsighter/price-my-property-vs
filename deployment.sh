@@ -169,9 +169,9 @@ log "🔧 Generating Prisma Client..."
 
 # Check if Prisma is available
 if [ -f "prisma/schema.prisma" ]; then
-    # Install Prisma CLI with specific version from package.json (required for build)
-    log "Installing Prisma CLI from package.json dependencies..."
-    npm install prisma @prisma/client --save-dev || warning "Failed to install Prisma CLI"
+    # Install Prisma CLI with specific version (Prisma 7.x has breaking changes)
+    log "Installing Prisma CLI v6.19.0 (compatible with current schema)..."
+    npm install prisma@6.19.0 @prisma/client@6.19.0 --save-dev || warning "Failed to install Prisma CLI"
 
     # Generate Prisma Client (CRITICAL: Must run before build)
     log "Generating Prisma Client..."
