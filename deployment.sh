@@ -17,8 +17,9 @@ NC='\033[0m' # No Color
 # Configuration
 APP_NAME="pricemyproperty"
 APP_DIR="$(pwd)"
-NODE_ENV="production"
-PORT=3000
+# NODE_ENV and PORT will be loaded from .env file (defaults used if not set)
+NODE_ENV="${NODE_ENV:-production}"
+PORT="${PORT:-3000}"
 
 # Logging function
 log() {
