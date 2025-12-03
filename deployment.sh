@@ -128,8 +128,9 @@ log "📦 Installing dependencies..."
 # Remove node_modules for clean install
 rm -rf node_modules || true
 
-# Install all dependencies (including dev for build)
-npm install || error "Failed to install dependencies"
+# Install all dependencies including devDependencies (needed for build)
+# NODE_ENV=production would skip devDeps, so we explicitly include them
+NODE_ENV=development npm install || error "Failed to install dependencies"
 
 log "✅ Dependencies installed"
 
