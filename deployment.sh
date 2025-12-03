@@ -233,26 +233,27 @@ log "✅ Build completed successfully"
 
 log "🔄 Deploying with PM2..."
 
-# Check if app is already running
+# Always delete and recreate PM2 process to ensure correct directory
+# This prevents issues where PM2 points to an old/wrong directory
 if pm2 list | grep -q "$APP_NAME"; then
-    log "♻️  Restarting existing PM2 process..."
-    pm2 restart "$APP_NAME" --update-env || error "Failed to restart PM2 process"
-else
-    log "🆕 Starting new PM2 process..."
-
-    # Check if ecosystem.config.js exists
-    if [ -f "ecosystem.config.js" ]; then
-        pm2 start ecosystem.config.js || error "Failed to start PM2 process"
-    else
-        PORT=$PORT pm2 start npm --name "$APP_NAME" -- start || error "Failed to start PM2 process"
-    fi
-
-    # Save PM2 configuration
-    pm2 save || warning "Failed to save PM2 configuration"
-
-    # Set PM2 to start on system boot
-    pm2 startup || info "PM2 startup command needs to be run with sudo"
+    log "🗑️  Deleting existing PM2 process (will recreate with correct path)..."
+    pm2 delete "$APP_NAME" || warning "Failed to delete existing PM2 process"
 fi
+
+log "🆕 Starting PM2 process from $(pwd)..."
+
+# Check if ecosystem.config.js exists
+if [ -f "ecosystem.config.js" ]; then
+    pm2 start ecosystem.config.js || error "Failed to start PM2 process"
+else
+    PORT=$PORT pm2 start npm --name "$APP_NAME" --cwd "$(pwd)" -- start || error "Failed to start PM2 process"
+fi
+
+# Save PM2 configuration
+pm2 save || warning "Failed to save PM2 configuration"
+
+# Set PM2 to start on system boot
+pm2 startup || info "PM2 startup command needs to be run with sudo"
 
 log "✅ PM2 deployment completed"
 
