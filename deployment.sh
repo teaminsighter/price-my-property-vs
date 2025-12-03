@@ -125,8 +125,14 @@ log "✅ Code updated successfully"
 
 log "📦 Installing dependencies..."
 
-# Clean install to ensure consistency
-npm ci --production=false || npm install || error "Failed to install dependencies"
+# Remove node_modules for clean install
+rm -rf node_modules || true
+
+# Install all dependencies (including dev for build)
+npm install || error "Failed to install dependencies"
+
+# Ensure critical build dependencies are installed
+npm install autoprefixer postcss tailwindcss --save-dev || warning "Failed to install postcss dependencies"
 
 log "✅ Dependencies installed"
 
