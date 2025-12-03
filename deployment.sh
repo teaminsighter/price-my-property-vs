@@ -240,6 +240,12 @@ if pm2 list | grep -q "$APP_NAME"; then
     pm2 delete "$APP_NAME" || warning "Failed to delete existing PM2 process"
 fi
 
+# Also delete old process names that might exist
+if pm2 list | grep -q "price-my-property"; then
+    log "🗑️  Deleting old 'price-my-property' PM2 process..."
+    pm2 delete "price-my-property" || warning "Failed to delete old PM2 process"
+fi
+
 log "🆕 Starting PM2 process from $(pwd)..."
 
 # Check if ecosystem.config.js exists
