@@ -174,12 +174,10 @@ if [ -f "prisma/schema.prisma" ]; then
     log "Installing Prisma CLI v6.19.0 (compatible with current schema)..."
     npm install prisma@6.19.0 @prisma/client@6.19.0 --save-dev || warning "Failed to install Prisma CLI"
 
-    # Use local prisma binary to avoid global Prisma 7.x
-    PRISMA="./node_modules/.bin/prisma"
-
     # Generate Prisma Client (CRITICAL: Must run before build)
+    # Use npm exec to run local prisma and avoid global Prisma 7.x
     log "Generating Prisma Client..."
-    $PRISMA generate || error "Failed to generate Prisma client - build will fail without this!"
+    npm exec -- prisma generate || error "Failed to generate Prisma client - build will fail without this!"
 
     log "✅ Prisma Client generated successfully"
 else
@@ -193,9 +191,6 @@ fi
 log "🗄️  Running database migrations..."
 
 if [ -f "prisma/schema.prisma" ]; then
-    # Use local prisma binary to avoid global Prisma 7.x
-    PRISMA="./node_modules/.bin/prisma"
-
     # Check if this is first deployment (no migrations exist yet)
     if [ ! -d "prisma/migrations" ] || [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
         log "📋 First deployment detected - creating initial migration..."
@@ -204,16 +199,16 @@ if [ -f "prisma/schema.prisma" ]; then
         mkdir -p prisma/migrations
 
         # Use db push for initial schema setup, then baseline
-        $PRISMA db push || error "Failed to push initial schema to database"
+        npm exec -- prisma db push || error "Failed to push initial schema to database"
 
         # Mark current schema as baseline (creates _prisma_migrations table)
-        $PRISMA migrate resolve --applied "0000_init" 2>/dev/null || true
+        npm exec -- prisma migrate resolve --applied "0000_init" 2>/dev/null || true
 
         log "✅ Initial database schema created"
     else
         # Normal deployment - run pending migrations
         log "📋 Running pending migrations..."
-        $PRISMA migrate deploy || error "Failed to run database migrations"
+        npm exec -- prisma migrate deploy || error "Failed to run database migrations"
         log "✅ Migrations applied successfully"
     fi
 else
