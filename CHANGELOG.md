@@ -14,6 +14,14 @@
 - Added Step 12.2: Quiz Error page for disqualified users (Tenant/Buyer/Not My Property)
 - Added formData fields: `refinancingGoal`, `bank`
 
+### Deployment & Infrastructure
+- Added `.htaccess` for Apache proxy to Next.js (port 3505)
+- Added database seeding step to `deployment.sh`
+- Added `seed` script to package.json (`npx tsx prisma/seed.ts`)
+
+### Documentation
+- Added `docs/FORM_FLOW.md` with complete form steps and submission flow
+
 ## 2025-12-03
 
 ### Lead Management
