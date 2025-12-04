@@ -11,7 +11,7 @@ Multi-step property valuation form with conditional logic, phone verification, a
 ### Step 1: Address Entry (Pre-form)
 - **Location:** Homepage (`/`)
 - **Component:** `AddressForm.tsx`
-- **Input:** Text with Addy.co.nz autocomplete
+- **Input:** Text with Google Places API autocomplete
 - **Validation:** Required, valid NZ address
 - **On Submit:** Redirects to `/get-started?address=...&postal=...`
 
@@ -316,6 +316,7 @@ Homepage (Address)
 | File | Purpose |
 |------|---------|
 | `components/AddressForm.tsx` | Homepage address entry |
+| `lib/services/google-places.ts` | Google Places API integration |
 | `components/GetStartedClient.tsx` | Main form (all steps) |
 | `components/PhoneVerificationModal.tsx` | SMS verification UI |
 | `app/api/leads/route.ts` | Create lead API |
