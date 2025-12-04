@@ -56,6 +56,8 @@ export default function GetStartedClient() {
     relationship: "",
     situation: "",
     otherSituation: "",
+    refinancingGoal: "",
+    bank: "",
     extraFeatures: [] as string[],
     firstName: "",
     lastName: "",
@@ -159,8 +161,14 @@ export default function GetStartedClient() {
     10.5: 'Garage Capacity',
     11: 'Condition',
     12: 'Relationship',
+    12.1: 'Agent Redirect',
+    12.2: 'Quiz Error',
     13: 'Situation',
     14: 'Clarify Situation',
+    14.1: 'Recently Listed',
+    14.2: 'Go Back to Agent',
+    14.3: 'Refinancing Goals',
+    14.4: 'Bank Selection',
     15: 'Extra Features',
     16: 'Skip', // This step is skipped
     17: 'Contact Details',
@@ -224,18 +232,20 @@ export default function GetStartedClient() {
 
     if (currentStep === 3) {
       // After property type selection
-      if (isLandOnly && nextStep === 4) nextStep = 5; // Skip house SQM
+      if (isLandOnly) {
+        nextStep = 5; // Skip house SQM, go to land size
+      }
     }
 
-    if (currentStep === 4 && isLandOnly) {
-      nextStep = 9; // Skip to CV valuation
+    if (currentStep === 4) {
+      if (isApartment) {
+        nextStep = 6; // Apartments skip land size
+      } else {
+        nextStep = 5;
+      }
     }
 
-    if (currentStep === 5 && isApartment) {
-      nextStep = 6; // Skip land size for apartments
-    }
-
-    if (currentStep === 5 && !isApartment && !isLandOnly) {
+    if (currentStep === 5) {
       nextStep = 6;
     }
 
@@ -254,11 +264,13 @@ export default function GetStartedClient() {
     if (currentStep === 12) {
       // Relationship routing
       if (formData.relationship === "Real Estate Agent") {
-        alert("Redirecting to agent page...");
+        nextStep = 12.1; // Agent redirect page
+        setCurrentStep(nextStep);
         return;
       }
       if (["Tenant", "Buyer", "Not My Property"].includes(formData.relationship)) {
-        alert("Sorry, this service is only for property owners.");
+        nextStep = 12.2; // Quiz error page
+        setCurrentStep(nextStep);
         return;
       }
     }
@@ -272,11 +284,18 @@ export default function GetStartedClient() {
     }
 
     if (currentStep === 14) {
-      if (formData.otherSituation === "Refinancing") {
-        alert("Redirecting to refinancing path...");
-        return;
+      if (formData.otherSituation === "Listing Soon") {
+        nextStep = 14.1; // Go to "Recently Listed?" question
+      } else if (formData.otherSituation === "Refinancing") {
+        nextStep = 14.3; // Go to refinancing goals
+      } else {
+        // All other options go to step 15 (extra features)
+        nextStep = 15;
       }
-      // All other options go to step 15 (extra features)
+    }
+
+    if (currentStep === 14.1) {
+      // Recently Listed? routing handled by button clicks
       nextStep = 15;
     }
 
@@ -475,6 +494,8 @@ export default function GetStartedClient() {
         );
 
       case 5:
+        // Skip land size for Apartment
+        if (formData.propertyType === "Apartment") return null;
         return (
           <StepContainer title="Size of Land">
             <div className="space-y-6">
@@ -684,6 +705,63 @@ export default function GetStartedClient() {
           </StepContainer>
         );
 
+      case 12.1:
+        // Agent redirect page
+        return (
+          <StepContainer title="Real Estate Agent Portal">
+            <div className="text-center space-y-6">
+              <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <p className="text-lg text-gray-800">
+                  Welcome! As a Real Estate Agent, you have access to our agent portal.
+                </p>
+                <p className="text-gray-600 mt-4">
+                  Please use the agent portal to submit property valuations for your clients.
+                </p>
+              </div>
+              <button
+                onClick={() => window.location.href = "https://pricemyproperty.co.nz/agent"}
+                className="px-8 py-3 bg-primary hover:bg-secondary text-white rounded-lg transition-colors font-semibold"
+              >
+                Go to Agent Portal
+              </button>
+              <div>
+                <button
+                  onClick={() => router.push("/")}
+                  className="text-gray-600 hover:text-primary transition-colors"
+                >
+                  ← Back to Home
+                </button>
+              </div>
+            </div>
+          </StepContainer>
+        );
+
+      case 12.2:
+        // Quiz error page - disqualified users
+        return (
+          <StepContainer title="Service Not Available">
+            <div className="text-center space-y-6">
+              <div className="p-6 bg-red-50 border-2 border-red-200 rounded-lg">
+                <p className="text-lg text-gray-800">
+                  Sorry, this service is only available for property owners.
+                </p>
+                <p className="text-gray-600 mt-4">
+                  We provide free property valuations to help homeowners understand the value of their property.
+                </p>
+                <p className="text-gray-600 mt-2">
+                  If you are looking to buy a property, please contact a local real estate agent.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/")}
+                className="px-8 py-3 bg-primary hover:bg-secondary text-white rounded-lg transition-colors font-semibold"
+              >
+                Back to Home
+              </button>
+            </div>
+          </StepContainer>
+        );
+
       case 13:
         return (
           <StepContainer title="What's Your Situation?">
@@ -724,18 +802,123 @@ export default function GetStartedClient() {
           </StepContainer>
         );
 
+      case 14.1:
+        // Step 14a: Recently Listed?
+        return (
+          <StepContainer title="Has your place been listed for sale in the last 30 days?">
+            <div className="grid grid-cols-2 gap-6">
+              <button
+                onClick={() => {
+                  setCurrentStep(14.2); // YES → Go to info page
+                }}
+                className="p-8 rounded-lg border-2 border-gray-300 hover:border-primary transition-all bg-white text-gray-900"
+              >
+                <span className="text-2xl font-bold">Yes</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentStep(15); // NO → Continue to extra features
+                }}
+                className="p-8 rounded-lg border-2 border-gray-300 hover:border-primary transition-all bg-white text-gray-900"
+              >
+                <span className="text-2xl font-bold">No</span>
+              </button>
+            </div>
+          </StepContainer>
+        );
+
+      case 14.2:
+        // Step 14b: Go back to agent info page
+        return (
+          <StepContainer title="Go Back to Your Agent">
+            <div className="text-center space-y-6">
+              <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                <p className="text-lg text-gray-800">
+                  You need to go back to your Real Estate Agent.
+                </p>
+                <p className="text-gray-600 mt-4">
+                  We provide sales valuations (appraisals) via Licensed Real Estate agents.
+                </p>
+                <p className="text-gray-600 mt-2">
+                  If you would like us to help you find a Top Agent, please click below.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/")}
+                className="px-8 py-3 bg-primary hover:bg-secondary text-white rounded-lg transition-colors font-semibold"
+              >
+                Find a Top Agent
+              </button>
+            </div>
+          </StepContainer>
+        );
+
+      case 14.3:
+        // Refinancing Path: Goals
+        return (
+          <StepContainer title="So, where can we help?">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { value: "refix_mortgage", label: "Refix my mortgage at a better rate" },
+                { value: "buy_second_property", label: "Looking to buy a second property" },
+                { value: "help_family", label: "Helping family into their first home" },
+                { value: "renovating", label: "Renovating our property" }
+              ].map((goal) => (
+                <button
+                  key={goal.value}
+                  onClick={() => {
+                    updateFormData("refinancingGoal", goal.value);
+                    setCurrentStep(14.4); // Go to banks selection
+                  }}
+                  className="p-6 rounded-lg border-2 border-gray-300 hover:border-primary transition-all bg-white text-gray-900 text-left"
+                >
+                  <span className="text-lg font-semibold">{goal.label}</span>
+                </button>
+              ))}
+            </div>
+          </StepContainer>
+        );
+
+      case 14.4:
+        // Refinancing Path: Banks
+        return (
+          <StepContainer title="Who is your current bank?">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {["ASB", "BNZ", "Westpac", "Kiwibank", "TSB", "Other"].map((bank) => (
+                <button
+                  key={bank}
+                  onClick={() => {
+                    updateFormData("bank", bank);
+                    setCurrentStep(17); // Go to contact details
+                  }}
+                  className="p-6 rounded-lg border-2 border-gray-300 hover:border-primary transition-all bg-white text-gray-900"
+                >
+                  <span className="text-xl font-bold">{bank}</span>
+                </button>
+              ))}
+            </div>
+          </StepContainer>
+        );
+
       case 15:
         return (
           <StepContainer title="Select Extra Features">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {["Sea View", "Heating", "Lawn", "Outdoor Area", "Spa", "Pool", "Deck", "Fireplace"].map((feature) => (
+              {["Sea/Water Views", "Heating/Cooling", "Lawn Area", "Outdoor Entertaining", "Spa/Pool/Sauna", "None of the Above"].map((feature) => (
                 <button
                   key={feature}
                   onClick={() => {
-                    const features = formData.extraFeatures.includes(feature)
-                      ? formData.extraFeatures.filter((f) => f !== feature)
-                      : [...formData.extraFeatures, feature];
-                    updateFormData("extraFeatures", features);
+                    // "None of the Above" clears other selections
+                    if (feature === "None of the Above") {
+                      updateFormData("extraFeatures", ["None of the Above"]);
+                    } else {
+                      // Remove "None of the Above" if selecting other features
+                      const withoutNone = formData.extraFeatures.filter((f) => f !== "None of the Above");
+                      const features = withoutNone.includes(feature)
+                        ? withoutNone.filter((f) => f !== feature)
+                        : [...withoutNone, feature];
+                      updateFormData("extraFeatures", features);
+                    }
                   }}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.extraFeatures.includes(feature)
@@ -747,7 +930,7 @@ export default function GetStartedClient() {
                 </button>
               ))}
             </div>
-            <p className="text-sm text-gray-500 mt-4">Select at least one feature</p>
+            <p className="text-sm text-gray-500 mt-4">Select at least one option</p>
           </StepContainer>
         );
 

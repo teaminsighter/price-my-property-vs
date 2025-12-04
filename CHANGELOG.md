@@ -1,5 +1,19 @@
 # Changelog
 
+## 2025-12-04
+
+### Form Flow Updates (pmpcms Alignment)
+- Fixed Step 5 skip logic: Land Size now skips for Apartment property type
+- Added Step 14a (14.1): "Recently Listed?" question for "Listing Soon" selection
+- Added Step 14b (14.2): "Go Back to Your Agent" info page for recently listed properties
+- Updated Step 14 routing: "Listing Soon" → 14a → (Yes → 14b exit, No → Step 15)
+- Added Refinancing Path: Step 14.3 (Goals) → Step 14.4 (Banks) → Contact Details
+- Updated Step 15 Extra Features to 6 options matching pmpcms (Sea/Water Views, Heating/Cooling, Lawn Area, Outdoor Entertaining, Spa/Pool/Sauna, None of the Above)
+- Added "None of the Above" mutual exclusion logic in Extra Features
+- Added Step 12.1: Agent Portal redirect page for Real Estate Agents
+- Added Step 12.2: Quiz Error page for disqualified users (Tenant/Buyer/Not My Property)
+- Added formData fields: `refinancingGoal`, `bank`
+
 ## 2025-12-03
 
 ### Lead Management
