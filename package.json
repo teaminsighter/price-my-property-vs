@@ -6,7 +6,8 @@
     "dev": "next dev -p 3505",
     "build": "next build",
     "start": "next start -p 3505",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
