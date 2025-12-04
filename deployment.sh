@@ -241,6 +241,19 @@ else
 fi
 
 #################################################
+# Database Seeding
+#################################################
+
+log "🌱 Checking database seed..."
+
+if [ -f "prisma/seed.ts" ] || [ -f "prisma/seed.js" ]; then
+    npm run seed || warning "Seeding failed (might be already seeded)"
+    log "✅ Database seeding complete"
+else
+    info "No seed file found, skipping seeding"
+fi
+
+#################################################
 # Build application
 #################################################
 
